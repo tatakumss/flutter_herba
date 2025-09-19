@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1089128243148",
+    "project_id": "herba-app-c456a",
+    "storage_bucket": "herba-app-c456a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1089128243148:android:25fef38a9d87a55272c769",
+        "android_client_info": {
+          "package_name": "com.example.herbapedia"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBpr8CJeZkvWKzbhpjkK226cY3uEZHNJoc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
