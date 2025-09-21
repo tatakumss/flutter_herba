@@ -31,7 +31,9 @@ class LibraryScreen extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: AppConfig.primaryDark,
+                          color: (Theme.of(context).brightness == Brightness.dark)
+                              ? const Color(0xFF81C784)
+                              : AppConfig.primaryDark,
                         ),
                       ),
                       Container(
@@ -121,7 +123,7 @@ class LibraryScreen extends StatelessWidget {
                   itemCount: plants.length,
                   itemBuilder: (context, index) {
                     final plant = plants[index];
-                    return _buildPlantCard(plant);
+                    return _buildPlantCard(plant, context);
                   },
                 ),
               ),
@@ -158,10 +160,10 @@ class LibraryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPlantCard(Map<String, dynamic> plant) {
+  Widget _buildPlantCard(Map<String, dynamic> plant, BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -237,7 +239,9 @@ class LibraryScreen extends StatelessWidget {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
-                          color: AppConfig.primaryDark,
+                          color: (Theme.of(context).brightness == Brightness.dark)
+                              ? const Color(0xFF81C784)
+                              : AppConfig.primaryDark,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -245,7 +249,7 @@ class LibraryScreen extends StatelessWidget {
                         plant["category"],
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[600],
+                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.75),
                         ),
                       ),
                     ],

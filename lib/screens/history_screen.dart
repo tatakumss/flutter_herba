@@ -54,7 +54,9 @@ class HistoryScreen extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: AppConfig.primaryDark,
+                      color: (Theme.of(context).brightness == Brightness.dark)
+                          ? const Color(0xFF81C784)
+                          : AppConfig.primaryDark,
                     ),
                   ),
                   Container(
@@ -91,6 +93,7 @@ class HistoryScreen extends StatelessWidget {
                       "${scans.length}",
                       Icons.camera_alt,
                       const Color(0xFF4CAF50),
+                      context,
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -100,6 +103,7 @@ class HistoryScreen extends StatelessWidget {
                       "87%",
                       Icons.check_circle,
                       AppConfig.primaryColor,
+                      context,
                     ),
                   ),
                 ],
@@ -115,7 +119,7 @@ class HistoryScreen extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(height: 16),
                 itemBuilder: (context, index) {
                   final scan = scans[index];
-                  return _buildHistoryCard(scan);
+                  return _buildHistoryCard(scan, context);
                 },
               ),
             ),
@@ -125,11 +129,11 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -156,14 +160,16 @@ class HistoryScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: AppConfig.primaryDark,
+              color: (Theme.of(context).brightness == Brightness.dark)
+                  ? const Color(0xFF81C784)
+                  : AppConfig.primaryDark,
             ),
           ),
           Text(
             title,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey[600],
+              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.75),
             ),
           ),
         ],
@@ -171,13 +177,13 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHistoryCard(Map<String, dynamic> scan) {
+  Widget _buildHistoryCard(Map<String, dynamic> scan, BuildContext context) {
     final isSuccess = scan["status"] == "success";
     
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -225,7 +231,9 @@ class HistoryScreen extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: AppConfig.primaryDark,
+                          color: (Theme.of(context).brightness == Brightness.dark)
+                              ? const Color(0xFF81C784)
+                              : AppConfig.primaryDark,
                         ),
                       ),
                     ),

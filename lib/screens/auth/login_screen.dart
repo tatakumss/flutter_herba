@@ -94,7 +94,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: AppConfig.primaryDark,
+                        color: (Theme.of(context).brightness == Brightness.dark)
+                            ? const Color(0xFF81C784)
+                            : AppConfig.primaryDark,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -132,8 +134,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
+                        style: const TextStyle(color: Colors.black),
+                        cursorColor: Colors.black,
                         decoration: InputDecoration(
                           labelText: "Email",
+                          labelStyle: const TextStyle(color: Colors.black87),
+                          floatingLabelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
                           prefixIcon: Icon(Icons.email_outlined, color: AppConfig.primaryColor),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -172,8 +178,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
+                        style: const TextStyle(color: Colors.black),
+                        cursorColor: Colors.black,
                         decoration: InputDecoration(
                           labelText: "Password",
+                          labelStyle: const TextStyle(color: Colors.black87),
+                          floatingLabelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
                           prefixIcon: Icon(Icons.lock_outlined, color: AppConfig.primaryColor),
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -256,7 +266,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Text(
                             "Sign Up",
                             style: TextStyle(
-                              color: AppConfig.primaryColor,
+                              color: (Theme.of(context).brightness == Brightness.dark)
+                                  ? const Color(0xFF81C784)
+                                  : AppConfig.primaryColor,
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),

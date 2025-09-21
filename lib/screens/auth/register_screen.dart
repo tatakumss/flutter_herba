@@ -103,7 +103,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: AppConfig.primaryDark,
+                        color: (Theme.of(context).brightness == Brightness.dark)
+                            ? const Color(0xFF81C784)
+                            : AppConfig.primaryDark,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -141,8 +143,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
+                        style: const TextStyle(color: Colors.black),
+                        cursorColor: Colors.black,
                         decoration: InputDecoration(
                           labelText: "Email",
+                          labelStyle: const TextStyle(color: Colors.black87),
+                          floatingLabelStyle: const TextStyle(color: Colors.black),
                           prefixIcon: Icon(Icons.email_outlined, color: AppConfig.primaryColor),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -181,8 +187,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
+                        style: const TextStyle(color: Colors.black),
+                        cursorColor: Colors.black,
                         decoration: InputDecoration(
                           labelText: "Password",
+                          labelStyle: const TextStyle(color: Colors.black87),
+                          floatingLabelStyle: const TextStyle(color: Colors.black),
                           prefixIcon: Icon(Icons.lock_outlined, color: AppConfig.primaryColor),
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -232,8 +242,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: TextFormField(
                         controller: _confirmPasswordController,
                         obscureText: _obscureConfirmPassword,
+                        style: const TextStyle(color: Colors.black),
+                        cursorColor: Colors.black,
                         decoration: InputDecoration(
                           labelText: "Confirm Password",
+                          labelStyle: const TextStyle(color: Colors.black87),
+                          floatingLabelStyle: const TextStyle(color: Colors.black),
                           prefixIcon: Icon(Icons.lock_outlined, color: AppConfig.primaryColor),
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -311,7 +325,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           child: Text(
                             "Sign In",
                             style: TextStyle(
-                              color: AppConfig.primaryColor,
+                              color: (Theme.of(context).brightness == Brightness.dark)
+                                  ? const Color(0xFF81C784)
+                                  : AppConfig.primaryColor,
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),

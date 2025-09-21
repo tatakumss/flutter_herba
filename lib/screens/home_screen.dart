@@ -32,7 +32,9 @@ class HomeScreen extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: AppConfig.primaryDark,
+                          color: (Theme.of(context).brightness == Brightness.dark)
+                              ? const Color(0xFF81C784)
+                              : AppConfig.primaryDark,
                         ),
                       ),
                     ],
@@ -138,7 +140,9 @@ class HomeScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: AppConfig.primaryDark,
+                  color: (Theme.of(context).brightness == Brightness.dark)
+                      ? const Color(0xFF81C784)
+                      : AppConfig.primaryDark,
                 ),
               ),
               const SizedBox(height: 16),
@@ -151,6 +155,7 @@ class HomeScreen extends StatelessWidget {
                       title: "Browse Library",
                       subtitle: "Explore plants",
                       color: const Color(0xFF8BC34A),
+                      context: context,
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -160,6 +165,7 @@ class HomeScreen extends StatelessWidget {
                       title: "Recent Scans",
                       subtitle: "View history",
                       color: const Color(0xFF66BB6A),
+                      context: context,
                     ),
                   ),
                 ],
@@ -174,6 +180,7 @@ class HomeScreen extends StatelessWidget {
                       title: "Favorites",
                       subtitle: "Saved plants",
                       color: const Color(0xFF4CAF50),
+                      context: context,
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -183,6 +190,7 @@ class HomeScreen extends StatelessWidget {
                       title: "Settings",
                       subtitle: "Preferences",
                       color: const Color(0xFF2E7D32),
+                      context: context,
                     ),
                   ),
                 ],
@@ -199,11 +207,12 @@ class HomeScreen extends StatelessWidget {
     required String title,
     required String subtitle,
     required Color color,
+    required BuildContext context,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -230,7 +239,9 @@ class HomeScreen extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 14,
-              color: AppConfig.primaryDark,
+              color: (Theme.of(context).brightness == Brightness.dark)
+                  ? const Color(0xFF81C784)
+                  : AppConfig.primaryDark,
             ),
           ),
           const SizedBox(height: 4),
@@ -238,7 +249,7 @@ class HomeScreen extends StatelessWidget {
             subtitle,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey[600],
+              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.75),
             ),
           ),
         ],
