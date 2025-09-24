@@ -10,6 +10,7 @@ class EditProfileScreen extends StatefulWidget {
   final String? initialName;
   final DateTime? initialBirthday;
   final String? initialPhotoUrl;
+  final String? initialBio;
 
   const EditProfileScreen({
     super.key,
@@ -17,6 +18,7 @@ class EditProfileScreen extends StatefulWidget {
     this.initialName,
     this.initialBirthday,
     this.initialPhotoUrl,
+    this.initialBio,
   });
 
   @override
@@ -25,6 +27,7 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameController;
+  late final TextEditingController _bioController;
   DateTime? _birthday;
   String? _photoUrl;
   bool _uploading = false;
@@ -34,6 +37,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.initialName ?? '');
+    _bioController = TextEditingController(text: widget.initialBio ?? '');
     _birthday = widget.initialBirthday;
     _photoUrl = widget.initialPhotoUrl;
   }
@@ -41,6 +45,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _bioController.dispose();
     super.dispose();
   }
 
@@ -87,6 +92,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       'name': name,
       'birthday': _birthday?.toIso8601String(),
       'photoUrl': _photoUrl,
+      'bio': _bioController.text.trim(),
     });
   }
 

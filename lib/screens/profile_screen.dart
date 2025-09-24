@@ -20,6 +20,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _name;
   DateTime? _birthday;
   String? _photoUrl;
+  String? _bio;
   bool _firestoreReady = false;
 
   @override
@@ -48,6 +49,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final name = data['name'];
           final birthday = data['birthday'];
           final photoUrl = data['photoUrl'];
+          final bio = data['bio'];
           if (name is String && name.isNotEmpty) {
             _name = name;
           }
@@ -64,6 +66,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
           if (photoUrl is String && photoUrl.isNotEmpty) {
             _photoUrl = photoUrl;
+          }
+          if (bio is String && bio.isNotEmpty) {
+            _bio = bio;
           }
         }
       });
@@ -88,6 +93,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (local['photoUrl'] is String && (local['photoUrl'] as String).isNotEmpty) {
             _photoUrl = local['photoUrl'] as String;
           }
+          if (local['bio'] is String && (local['bio'] as String).isNotEmpty) {
+            _bio = local['bio'] as String;
+          }
         });
       }
     } catch (_) {}
@@ -103,6 +111,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           initialName: _name,
           initialBirthday: _birthday,
           initialPhotoUrl: _photoUrl,
+          initialBio: _bio,
         ),
       ),
     );
@@ -111,6 +120,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final name = result['name'];
       final bdayIso = result['birthday'];
       final photoUrl = result['photoUrl'];
+      final bio = result['bio'];
       DateTime? newBirthday;
       if (bdayIso is String && bdayIso.isNotEmpty) {
         newBirthday = DateTime.tryParse(bdayIso);
@@ -124,6 +134,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (photoUrl is String && photoUrl.isNotEmpty) {
           _photoUrl = photoUrl;
         }
+        if (bio is String) {
+          _bio = bio.isNotEmpty ? bio : null;
+        }
       });
       // Persist to Firestore (if available) and optionally update displayName
       if (user != null) {
@@ -132,14 +145,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             final photoToSave = (_photoUrl != null && (_photoUrl!.startsWith('http://') || _photoUrl!.startsWith('https://')))
                 ? _photoUrl
                 : null; // avoid saving local file:// paths to Firestore
-            await _profileService.updateProfile(user.uid, name: _name, birthday: _birthday, photoUrl: photoToSave);
+            await _profileService.updateProfile(user.uid, name: _name, birthday: _birthday, photoUrl: photoToSave, bio: _bio);
           } catch (_) {
             // Ignore persistence errors while user lacks Firestore permissions
           }
         }
         // Always persist locally as cache/fallback
         try {
-          await _localStore.save(name: _name, birthday: _birthday, photoUrl: _photoUrl);
+          await _localStore.save(name: _name, birthday: _birthday, photoUrl: _photoUrl, bio: _bio);
         } catch (_) {}
         if (_name != null && _name!.isNotEmpty) {
           try { await user.updateDisplayName(_name); } catch (_) {}
@@ -262,101 +275,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             : null,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
+                    
+                    // Name
                     Text(
-                      _authService.currentUser?.email ?? AppConfig.defaultUserName,
+                      _name ?? AppConfig.defaultUserName,
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
+                    
+                    // Email
                     Text(
-                      AppConfig.defaultUserTitle,
+                      _authService.currentUser?.email ?? 'No email',
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.white.withOpacity(0.9),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildStatItem("Plants\nScanned", "47"),
-                        Container(
-                          width: 1,
-                          height: 40,
-                          color: Colors.white.withOpacity(0.3),
-                        ),
-                        _buildStatItem("Success\nRate", "89%"),
-                        Container(
-                          width: 1,
-                          height: 40,
-                          color: Colors.white.withOpacity(0.3),
-                        ),
-                        _buildStatItem("Streak\nDays", "12"),
-                      ],
+                    const SizedBox(height: 8),
+                    
+                    // Bio
+                    Text(
+                      _bio?.isNotEmpty == true ? _bio! : 'Bio (optional)',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.7),
+                        fontStyle: _bio?.isNotEmpty == true ? FontStyle.normal : FontStyle.italic,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 32),
-              
-              // Personal Info Section (below profile card)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Personal info',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).textTheme.titleMedium?.color,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 15,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.person_outline),
-                      title: const Text('Name'),
-                      subtitle: Text(
-                        _name ?? AppConfig.defaultUserName,
-                        style: TextStyle(
-                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8),
-                        ),
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.cake_outlined),
-                      title: const Text('Birthday'),
-                      subtitle: Text(
-                        _birthday != null ? _formatDate(_birthday!) : 'Add your birthday',
-                        style: TextStyle(
-                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8),
-                        ),
-                      ),
-                      trailing: _birthday != null ? Text('Age ${_ageFrom(_birthday!)}') : null,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
               
               // Menu Items
               _buildMenuItem(
@@ -427,29 +382,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatItem(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.white.withOpacity(0.8),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildMenuItem({
     required IconData icon,

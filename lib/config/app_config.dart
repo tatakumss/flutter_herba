@@ -17,5 +17,5 @@ class AppConfig {
   
   // User profile settings
   static const String defaultUserName = "Plant Enthusiast";
-  static const String defaultUserTitle = "Nature Explorer 🌱";
+  static const String defaultUserTitle = "Nature Lover 🌱";
 }

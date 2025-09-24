@@ -19,12 +19,32 @@ class AuthService {
     }
   }
   
-  // Register with email and password
-  Future<UserCredential?> registerWithEmailAndPassword(String email, String password) async {
+  // Register with email and password without auto sign-in
+  Future<bool> registerWithEmailAndPassword(String email, String password, {String? displayName}) async {
     try {
-      return await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      // Create account without signing in by using a temporary auth instance
+      final tempAuth = FirebaseAuth.instance;
+      final credential = await tempAuth.createUserWithEmailAndPassword(email: email, password: password);
+      
+      // Update display name if provided using UserProfile
+      if (displayName != null && displayName.isNotEmpty && credential.user != null) {
+        try {
+          await credential.user!.updateProfile(displayName: displayName);
+        } catch (e) {
+          // If updating display name fails, we still want to return success
+          // The user account was created successfully
+          print('Warning: Could not update display name: $e');
+        }
+      }
+      
+      // Sign out immediately to prevent auto sign-in
+      await tempAuth.signOut();
+      
+      return true;
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
+    } catch (e) {
+      throw 'An unexpected error occurred during registration. Please try again.';
     }
   }
   

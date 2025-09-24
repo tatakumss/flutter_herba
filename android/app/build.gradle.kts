@@ -24,7 +24,7 @@ android {
         // Unique Application ID
         applicationId = "com.example.herbapedia"
         // ✅ Set Firebase required minimum SDK
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

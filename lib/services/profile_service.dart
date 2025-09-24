@@ -19,6 +19,7 @@ class ProfileService {
         'name': displayName ?? email ?? '',
         'birthday': null,
         'photoUrl': null,
+        'bio': null,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -30,6 +31,7 @@ class ProfileService {
     String? name,
     DateTime? birthday,
     String? photoUrl,
+    String? bio,
   }) async {
     final data = <String, dynamic>{
       if (name != null) 'name': name,
@@ -43,6 +45,9 @@ class ProfileService {
     }
     if (photoUrl != null) {
       data['photoUrl'] = photoUrl;
+    }
+    if (bio != null) {
+      data['bio'] = bio;
     }
     await _userDoc(uid).set(data, SetOptions(merge: true));
   }
