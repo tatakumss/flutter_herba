@@ -1,44 +1,153 @@
 import 'package:flutter/material.dart';
 import '../config/app_config.dart';
+import '../services/scan_history_service.dart';
 
-class HistoryScreen extends StatelessWidget {
-  final List<Map<String, dynamic>> scans = [
-    {
-      "name": "Rose",
-      "confidence": "95%",
-      "date": "Today",
-      "time": "2:30 PM",
-      "status": "success",
-      "color": Color(0xFFE91E63)
-    },
-    {
-      "name": "Basil",
-      "confidence": "89%",
-      "date": "Yesterday",
-      "time": "10:15 AM",
-      "status": "success",
-      "color": Color(0xFF4CAF50)
-    },
-    {
-      "name": "Unknown Plant",
-      "confidence": "45%",
-      "date": "2 days ago",
-      "time": "4:20 PM",
-      "status": "failed",
-      "color": Color(0xFF9E9E9E)
-    },
-    {
-      "name": "Sunflower",
-      "confidence": "92%",
-      "date": "3 days ago",
-      "time": "11:45 AM",
-      "status": "success",
-      "color": Color(0xFFFF9800)
-    },
-  ];
+class HistoryScreen extends StatefulWidget {
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  final _service = ScanHistoryService();
+  List<ScanEntry> _scans = [];
+  bool _loading = true;
+  bool _filterSuccessOnly = false;
+  bool _sortDesc = true; // newest first
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  List<ScanEntry> _filtered() {
+    var list = List<ScanEntry>.from(_scans);
+    if (_filterSuccessOnly) {
+      list = list.where((e) => e.success).toList();
+    }
+    list.sort((a, b) => _sortDesc
+        ? b.timestamp.compareTo(a.timestamp)
+        : a.timestamp.compareTo(b.timestamp));
+    return list;
+  }
+
+  Future<void> _load() async {
+    final data = await _service.load();
+    if (!mounted) return;
+    setState(() {
+      _scans = data;
+      _loading = false;
+    });
+  }
+
+  String _formatDateTime(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    String dateLabel;
+    if (diff.inDays == 0) {
+      dateLabel = 'Today';
+    } else if (diff.inDays == 1) {
+      dateLabel = 'Yesterday';
+    } else if (diff.inDays < 7) {
+      dateLabel = '${diff.inDays} days ago';
+    } else {
+      dateLabel = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+    }
+    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+    final timeLabel = '$hour:${dt.minute.toString().padLeft(2, '0')} $ampm';
+    return '$dateLabel • $timeLabel';
+  }
+
+  void _showTop3(ScanEntry scan) {
+    final theme = Theme.of(context);
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Material(
+              color: theme.cardColor,
+              elevation: 12,
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.analytics_outlined, color: theme.colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Text('Top matches', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                        const Spacer(),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          icon: const Icon(Icons.close),
+                        )
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    for (final cand in scan.candidates.take(3))
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                (cand['label'] ?? '').toString(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            SizedBox(
+                              width: 140,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: LinearProgressIndicator(
+                                  value: (cand['score'] is num) ? (cand['score'] as num).toDouble().clamp(0.0, 1.0) : 0.0,
+                                  minHeight: 8,
+                                  backgroundColor: theme.dividerColor.withOpacity(0.25),
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${(((cand['score'] is num) ? (cand['score'] as num).toDouble() : 0.0) * 100).toStringAsFixed(0)}%',
+                              style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('Close'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -54,29 +163,133 @@ class HistoryScreen extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: (Theme.of(context).brightness == Brightness.dark)
-                          ? const Color(0xFF81C784)
-                          : AppConfig.primaryDark,
+                      color: isDark ? const Color(0xFF81C784) : AppConfig.primaryDark,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                  Row(
+                    children: [
+                      if (_scans.isNotEmpty)
+                        IconButton(
+                          tooltip: 'Clear history',
+                          onPressed: () async {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) {
+                                return AlertDialog(
+                                  title: const Text('Clear history?'),
+                                  content: const Text('This will remove all saved scans. This action cannot be undone.'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(ctx).pop(false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    FilledButton(
+                                      style: FilledButton.styleFrom(backgroundColor: theme.colorScheme.error),
+                                      onPressed: () => Navigator.of(ctx).pop(true),
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                            if (confirmed == true) {
+                              await _service.clear();
+                              await _load();
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('History cleared')),
+                                );
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.delete_sweep_outlined),
+                          color: theme.colorScheme.error,
                         ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.filter_list,
-                      color: AppConfig.primaryColor,
-                      size: 24,
-                    ),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () async {
+                          await showModalBottomSheet(
+                            context: context,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                            ),
+                            builder: (ctx) {
+                              return StatefulBuilder(
+                                builder: (ctx, setModalState) {
+                                  return Padding(
+                                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(Icons.filter_list, color: theme.colorScheme.primary),
+                                            const SizedBox(width: 8),
+                                            Text('Filters', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                                            const Spacer(),
+                                            TextButton(
+                                              onPressed: () => Navigator.of(ctx).pop(),
+                                              child: const Text('Close'),
+                                            )
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        SwitchListTile(
+                                          title: const Text('Show successful scans only'),
+                                          value: _filterSuccessOnly,
+                                          onChanged: (v) {
+                                            setModalState(() => _filterSuccessOnly = v);
+                                            setState(() {});
+                                          },
+                                        ),
+                                        const SizedBox(height: 4),
+                                        ListTile(
+                                          contentPadding: EdgeInsets.zero,
+                                          title: const Text('Sort order'),
+                                          subtitle: Text(_sortDesc ? 'Newest first' : 'Oldest first'),
+                                          trailing: SegmentedButton<bool>(
+                                            segments: const [
+                                              ButtonSegment(value: true, label: Text('Newest')),
+                                              ButtonSegment(value: false, label: Text('Oldest')),
+                                            ],
+                                            selected: {_sortDesc},
+                                            onSelectionChanged: (sel) {
+                                              final val = sel.first;
+                                              setModalState(() => _sortDesc = val);
+                                              setState(() {});
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: theme.cardColor,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.filter_list,
+                            color: theme.colorScheme.primary,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -90,7 +303,7 @@ class HistoryScreen extends StatelessWidget {
                   Expanded(
                     child: _buildStatCard(
                       "Total Scans",
-                      "${scans.length}",
+                      "${_filtered().length}",
                       Icons.camera_alt,
                       const Color(0xFF4CAF50),
                       context,
@@ -100,7 +313,9 @@ class HistoryScreen extends StatelessWidget {
                   Expanded(
                     child: _buildStatCard(
                       "Success Rate",
-                      "87%",
+                      _filtered().isEmpty
+                          ? "—"
+                          : "${((_filtered().where((e) => e.success).length / _filtered().length) * 100).toStringAsFixed(0)}%",
                       Icons.check_circle,
                       AppConfig.primaryColor,
                       context,
@@ -113,15 +328,26 @@ class HistoryScreen extends StatelessWidget {
             
             // History List
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: scans.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final scan = scans[index];
-                  return _buildHistoryCard(scan, context);
-                },
-              ),
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : (_filtered().isEmpty
+                      ? Center(
+                          child: Text(
+                            'No scans yet. Try scanning a plant!',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          itemCount: _filtered().length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 16),
+                          itemBuilder: (context, index) {
+                            final scan = _filtered()[index];
+                            return _buildHistoryCard(scan, context);
+                          },
+                        )),
             ),
           ],
         ),
@@ -177,23 +403,27 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHistoryCard(Map<String, dynamic> scan, BuildContext context) {
-    final isSuccess = scan["status"] == "success";
+  Widget _buildHistoryCard(ScanEntry scan, BuildContext context) {
+    final isSuccess = scan.success;
+    final color = isSuccess ? const Color(0xFF4CAF50) : Colors.orange;
     
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
+    return InkWell(
+      onTap: () => _showTop3(scan),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 15,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
         children: [
           // Plant Icon
           Container(
@@ -202,8 +432,8 @@ class HistoryScreen extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  scan["color"].withOpacity(0.3),
-                  scan["color"].withOpacity(0.1),
+                  color.withOpacity(0.3),
+                  color.withOpacity(0.1),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -212,7 +442,7 @@ class HistoryScreen extends StatelessWidget {
             ),
             child: Icon(
               isSuccess ? Icons.local_florist : Icons.help_outline,
-              color: scan["color"],
+              color: color,
               size: 28,
             ),
           ),
@@ -227,7 +457,7 @@ class HistoryScreen extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        scan["name"],
+                        scan.name,
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -246,7 +476,7 @@ class HistoryScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        scan["confidence"],
+                        '${(scan.confidence * 100).toStringAsFixed(0)}%',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -266,7 +496,7 @@ class HistoryScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      "${scan['date']} • ${scan['time']}",
+                      _formatDateTime(scan.timestamp),
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -282,17 +512,18 @@ class HistoryScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppConfig.primaryColor.withOpacity(0.1),
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               Icons.arrow_forward_ios,
               size: 16,
-              color: AppConfig.primaryColor,
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
         ],
       ),
+    ),
     );
   }
 }

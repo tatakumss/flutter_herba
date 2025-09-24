@@ -3,6 +3,9 @@ import '../config/app_config.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 import '../services/tflite_service.dart';
+import 'package:camera/camera.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/scan_history_service.dart';
 
 class PlantScreen extends StatefulWidget {
   @override
@@ -17,11 +20,16 @@ class _PlantScreenState extends State<PlantScreen> {
 
   final _picker = ImagePicker();
   final _tflite = TFLiteService();
+  CameraController? _cameraController;
+  bool _flashOn = false;
+  final _history = ScanHistoryService();
 
   @override
   void initState() {
     super.initState();
     _initModel();
+    _initCamera();
+    _maybeShowTutorial();
   }
 
   Future<void> _initModel() async {
@@ -33,9 +41,127 @@ class _PlantScreenState extends State<PlantScreen> {
     }
   }
 
+  Future<void> _initCamera() async {
+    try {
+      final cams = await availableCameras();
+      final cam = cams.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.back,
+        orElse: () => cams.isNotEmpty ? cams.first : throw Exception('No camera available'),
+      );
+      final controller = CameraController(
+        cam,
+        ResolutionPreset.medium,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.yuv420,
+      );
+      _cameraController = controller;
+      await controller.initialize();
+      if (!mounted) return;
+      setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _error = 'Camera not available: $e'; });
+    }
+  }
+
+  Future<void> _maybeShowTutorial() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      const key = 'seen_plant_tutorial_v1';
+      final seen = prefs.getBool(key) ?? false;
+      if (!seen) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showTutorial();
+        });
+        await prefs.setBool(key, true);
+      }
+    } catch (_) {
+      // ignore storage errors
+    }
+  }
+
+  void _showTutorial() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Material(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(20),
+              elevation: 12,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.help_outline, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'How to scan plants',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          icon: const Icon(Icons.close),
+                        )
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '1. Position the plant in the camera frame.\n'
+                      '2. Ensure good lighting and keep the camera steady.\n'
+                      '3. Tap "Capture Plant" to take a photo and analyze it.\n'
+                      '4. Or use "Gallery" to pick an existing photo.',
+                      style: TextStyle(fontSize: 14, height: 1.5),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Icon(Icons.analytics_outlined, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'What the results mean',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      '• Top matches: the most likely plant names.\n'
+                      '• Bars and percentages show confidence (capped at 85% to avoid false certainty).\n'
+                      '• This is a best guess based on visual features — always double-check important identifications.',
+                      style: TextStyle(fontSize: 14, height: 1.5),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: const Text('Got it'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _pickFromGallery() async {
     try {
-      // Ensure model is initialized before classification
       if (!_tflite.isInitialized) {
         await _initModel();
       }
@@ -59,6 +185,33 @@ class _PlantScreenState extends State<PlantScreen> {
     }
   }
 
+  Future<void> _captureAndClassify() async {
+    try {
+      if (_cameraController == null || !_cameraController!.value.isInitialized) {
+        await _initCamera();
+      }
+      if (!_tflite.isInitialized) {
+        await _initModel();
+      }
+      if (_cameraController == null || !_cameraController!.value.isInitialized) {
+        setState(() { _error = 'Camera not initialized'; });
+        return;
+      }
+      final pic = await _cameraController!.takePicture();
+      final bytes = await pic.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _previewBytes = bytes;
+        _results = [];
+        _error = null;
+      });
+      await _classify(bytes);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _error = 'Capture failed: $e'; });
+    }
+  }
+
   Future<void> _classify(Uint8List bytes) async {
     if (!_tflite.isInitialized) return;
     setState(() { _loading = true; _results = []; _error = null; });
@@ -66,6 +219,26 @@ class _PlantScreenState extends State<PlantScreen> {
       final res = await _tflite.classify(bytes, topK: 3);
       if (!mounted) return;
       setState(() { _results = res; });
+      // Persist top result to history if available
+      if (res.isNotEmpty) {
+        final top = res.first;
+        final label = (top['label'] ?? 'Unknown').toString();
+        final score = (top['score'] is num) ? (top['score'] as num).toDouble() : 0.0;
+        final candidates = res.take(3).map<Map<String, dynamic>>((e) {
+          final l = (e['label'] ?? '').toString();
+          final s = (e['score'] is num) ? (e['score'] as num).toDouble() : 0.0;
+          return {'label': l, 'score': s};
+        }).toList();
+        await _history.add(
+          ScanEntry(
+            name: label,
+            confidence: score,
+            timestamp: DateTime.now(),
+            success: true,
+            candidates: candidates,
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() { _error = e.toString(); });
@@ -74,9 +247,23 @@ class _PlantScreenState extends State<PlantScreen> {
     }
   }
 
+  Future<void> _toggleFlash() async {
+    try {
+      final ctrl = _cameraController;
+      if (ctrl == null || !ctrl.value.isInitialized) return;
+      _flashOn = !_flashOn;
+      await ctrl.setFlashMode(_flashOn ? FlashMode.torch : FlashMode.off);
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _error = 'Flash not available: $e'; });
+    }
+  }
+
   @override
   void dispose() {
     _tflite.dispose();
+    _cameraController?.dispose();
     super.dispose();
   }
 
@@ -102,23 +289,27 @@ class _PlantScreenState extends State<PlantScreen> {
                           : AppConfig.primaryDark,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.help_outline,
-                      color: AppConfig.primaryColor,
-                      size: 24,
+                  InkWell(
+                    onTap: _showTutorial,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.help_outline,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 24,
+                      ),
                     ),
                   ),
                 ],
@@ -133,21 +324,28 @@ class _PlantScreenState extends State<PlantScreen> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFF4CAF50).withOpacity(0.1),
-                      const Color(0xFF2E7D32).withOpacity(0.05),
+                      Theme.of(context).colorScheme.primary.withOpacity(0.10),
+                      Theme.of(context).colorScheme.primary.withOpacity(0.05),
                     ],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
                   borderRadius: BorderRadius.circular(32),
                   border: Border.all(
-                    color: const Color(0xFF4CAF50).withOpacity(0.3),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.30),
                     width: 2,
                   ),
                 ),
                 child: Stack(
                   children: [
-                    if (_previewBytes != null)
+                    if (_cameraController != null && _cameraController!.value.isInitialized)
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(32),
+                          child: CameraPreview(_cameraController!),
+                        ),
+                      )
+                    else if (_previewBytes != null)
                       Positioned.fill(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(32),
@@ -165,7 +363,7 @@ class _PlantScreenState extends State<PlantScreen> {
                             Container(
                               padding: const EdgeInsets.all(24),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: Theme.of(context).cardColor,
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
@@ -178,7 +376,7 @@ class _PlantScreenState extends State<PlantScreen> {
                               child: Icon(
                                 Icons.camera_alt,
                                 size: 64,
-                                color: AppConfig.primaryColor,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                             const SizedBox(height: 24),
@@ -198,7 +396,7 @@ class _PlantScreenState extends State<PlantScreen> {
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.grey[600],
+                                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
                               ),
                             ),
                           ],
@@ -269,19 +467,15 @@ class _PlantScreenState extends State<PlantScreen> {
               flex: 1,
               child: Padding(
                 padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
+                child: Column(children: [
                     // Primary Action - Camera
                     Container(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
-                          // TODO: integrate camera capture; for now prefer gallery
-                          _pickFromGallery();
-                        },
+                        onPressed: _captureAndClassify,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppConfig.primaryColor,
-                          foregroundColor: Colors.white,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
                           padding: const EdgeInsets.symmetric(vertical: 18),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
@@ -291,7 +485,7 @@ class _PlantScreenState extends State<PlantScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.camera_alt, size: 24),
+                            Icon(Icons.camera_alt, size: 24, color: Theme.of(context).colorScheme.onPrimary),
                             const SizedBox(width: 12),
                             Text(
                               "Capture Plant",
@@ -312,7 +506,7 @@ class _PlantScreenState extends State<PlantScreen> {
                         Expanded(
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: Theme.of(context).cardColor,
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
@@ -326,13 +520,13 @@ class _PlantScreenState extends State<PlantScreen> {
                               onPressed: _pickFromGallery,
                               icon: Icon(
                                 Icons.photo_library_outlined,
-                                color: AppConfig.primaryColor,
+                                color: Theme.of(context).colorScheme.primary,
                                 size: 20,
                               ),
                               label: Text(
                                 "Gallery",
                                 style: TextStyle(
-                                  color: AppConfig.primaryColor,
+                                  color: Theme.of(context).colorScheme.primary,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -346,7 +540,7 @@ class _PlantScreenState extends State<PlantScreen> {
                         Expanded(
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: Theme.of(context).cardColor,
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
@@ -357,16 +551,16 @@ class _PlantScreenState extends State<PlantScreen> {
                               ],
                             ),
                             child: TextButton.icon(
-                              onPressed: () {},
+                              onPressed: _toggleFlash,
                               icon: Icon(
                                 Icons.flash_on_outlined,
-                                color: AppConfig.primaryColor,
+                                color: Theme.of(context).colorScheme.primary,
                                 size: 20,
                               ),
                               label: Text(
                                 "Flash",
                                 style: TextStyle(
-                                  color: AppConfig.primaryColor,
+                                  color: Theme.of(context).colorScheme.primary,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -404,14 +598,14 @@ class _PlantScreenState extends State<PlantScreen> {
   }
 
   Widget _buildResultCard(List<Map<String, dynamic>> results) {
-    // Card background is white; enforce dark text for readability
-    const titleStyle = TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black87);
-    const labelStyle = TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87);
-    const percentStyle = TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87);
+    final theme = Theme.of(context);
+    final titleStyle = theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700) ?? const TextStyle(fontSize: 16, fontWeight: FontWeight.w700);
+    final labelStyle = theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600) ?? const TextStyle(fontSize: 14, fontWeight: FontWeight.w600);
+    final percentStyle = theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600) ?? const TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -425,11 +619,11 @@ class _PlantScreenState extends State<PlantScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Top matches', style: titleStyle),
+          Text('Top matches', style: titleStyle),
           const SizedBox(height: 4),
           Text(
             'Best guess based on visual features',
-            style: TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w500),
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.textTheme.bodySmall?.color?.withOpacity(0.7), fontWeight: FontWeight.w500) ?? const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 8),
           for (final item in results)
@@ -456,8 +650,8 @@ class _PlantScreenState extends State<PlantScreen> {
                             ? ((item['score'] as num).toDouble().clamp(0.0, 1.0)).clamp(0.0, 0.85)
                             : 0.0,
                         minHeight: 8,
-                        backgroundColor: Colors.grey.shade200,
-                        color: AppConfig.primaryColor,
+                        backgroundColor: theme.dividerColor.withOpacity(0.25),
+                        color: theme.colorScheme.primary,
                       ),
                     ),
                   ),

@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Pandan",
+    "category": "Herb",
+    "description": "Aromatic leaves used in Southeast Asian cooking and desserts.",
+    "uses": ["Culinary", "Aroma", "Natural coloring"],
+    "tags": ["tropical", "cooking", "fragrant"],
+    "color": "#4CAF50"
+  },
+  {
+    "name": "Basil",
+    "category": "Herb",
+    "description": "Popular herb with sweet aroma used in many cuisines.",
+    "uses": ["Culinary", "Medicinal"],
+    "tags": ["herb", "aromatic", "leaves"],
+    "color": "#43A047"
+  },
+  {
+    "name": "Aloe Vera",
+    "category": "Succulent",
+    "description": "Fleshy leaves with soothing gel for skin and hair.",
+    "uses": ["Skin care", "Medicinal"],
+    "tags": ["succulent", "healing"],
+    "color": "#8BC34A"
+  },
+  {
+    "name": "Lavender",
+    "category": "Medicinal",
+    "description": "Fragrant purple flowers used for relaxation and oils.",
+    "uses": ["Aromatherapy", "Decorative"],
+    "tags": ["fragrance", "purple", "calming"],
+    "color": "#9C27B0"
+  },
+  {
+    "name": "Mint",
+    "category": "Herb",
+    "description": "Refreshing leaves used for drinks, desserts and cuisine.",
+    "uses": ["Culinary", "Aromatherapy"],
+    "tags": ["fresh", "cooling"],
+    "color": "#00BCD4"
+  },
+  {
+    "name": "Sunflower",
+    "category": "Flower",
+    "description": "Large bright flowers that follow the sun.",
+    "uses": ["Decorative", "Seeds"],
+    "tags": ["yellow", "ornamental"],
+    "color": "#FF9800"
+  }
+]
