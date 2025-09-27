@@ -10,6 +10,7 @@ class TFLiteService {
   TFLiteService._internal();
 
   Interpreter? _interpreter;
+  Interpreter? _embedder; // optional feature extractor
   bool _initialized = false;
   int _inputSize = 224;
   bool _isQuant = true; // default to quant model
@@ -18,11 +19,24 @@ class TFLiteService {
   bool get isInitialized => _initialized;
 
   Future<void> init({
-    String modelAsset = 'assets/models/herbal_classifier_quantized.tflite',
+    String modelAsset = 'assets/models/herbal_classifier_mobile.tflite',
     String labelsAsset = 'assets/models/phase1_labels.txt',
+    String? extractorAsset, // optional feature extractor model
   }) async {
     if (_initialized) return;
-    _interpreter = await Interpreter.fromAsset(modelAsset, options: InterpreterOptions()..threads = 2);
+    try {
+      // Load model bytes explicitly for clearer error surfacing
+      final modelData = await rootBundle.load(modelAsset);
+      final modelBytes = modelData.buffer.asUint8List();
+      final options = InterpreterOptions()
+        ..threads = 2
+        // NNAPI can be unstable on some emulators; disable by default
+        ..useNnApiForAndroid = false;
+      _interpreter = await Interpreter.fromBuffer(modelBytes, options: options);
+    } catch (e) {
+      // Re-throw with context so UI can show precise cause
+      throw ArgumentError('Failed to load TFLite model "$modelAsset": $e');
+    }
     final inputT = _interpreter!.getInputTensors().first;
     final shape = inputT.shape; // [1,H,W,3]
     if (shape.length >= 3) _inputSize = shape[1];
@@ -41,6 +55,21 @@ class TFLiteService {
           .toList();
     } catch (_) {
       _labels = [];
+    }
+
+    // Optionally load feature extractor
+    if (extractorAsset != null && extractorAsset.isNotEmpty) {
+      try {
+        final fxData = await rootBundle.load(extractorAsset);
+        final fxBytes = fxData.buffer.asUint8List();
+        final options = InterpreterOptions()
+          ..threads = 2
+          ..useNnApiForAndroid = false;
+        _embedder = await Interpreter.fromBuffer(fxBytes, options: options);
+      } catch (e) {
+        // Keep app running even if embedder is unavailable
+        _embedder = null;
+      }
     }
 
     _initialized = true;
@@ -85,9 +114,72 @@ class TFLiteService {
     return pairs.take(topK).toList();
   }
 
+  // Returns the full probability/logit-like scores as doubles in model order
+  Future<List<double>> predictProbs(Uint8List bytes) async {
+    if (_interpreter == null) throw StateError('Interpreter not initialized');
+    final img.Image? base = img.decodeImage(bytes);
+    if (base == null) throw StateError('Invalid image');
+    final img.Image resized = img.copyResize(base, width: _inputSize, height: _inputSize, interpolation: img.Interpolation.linear);
+
+    final intSize = _inputSize;
+    final rgb = resized.getBytes(order: img.ChannelOrder.rgb);
+
+    int p = 0;
+    final inputTensor = List.generate(1, (_) =>
+        List.generate(intSize, (_) =>
+            List.generate(intSize, (_) =>
+                List.generate(3, (_) => _isQuant ? rgb[p++] : (rgb[p++] / 255.0)))));
+
+    final outputT = _interpreter!.getOutputTensors().first;
+    final numLabels = outputT.shape.last;
+    final outputTensor = _isQuant
+        ? List.generate(1, (_) => List<int>.filled(numLabels, 0))
+        : List.generate(1, (_) => List<double>.filled(numLabels, 0.0));
+
+    _interpreter!.run(inputTensor, outputTensor);
+
+    return List<double>.generate(
+      numLabels,
+      (i) => _isQuant ? (outputTensor[0][i] as int) / 255.0 : (outputTensor[0][i] as double),
+    );
+  }
+
   void dispose() {
     _interpreter?.close();
     _interpreter = null;
+    _embedder?.close();
+    _embedder = null;
     _initialized = false;
+  }
+
+  // Generate an embedding using the optional feature extractor. Returns empty list if unavailable.
+  Future<List<double>> getEmbedding(Uint8List bytes) async {
+    final fx = _embedder;
+    if (fx == null) return <double>[];
+    final img.Image? base = img.decodeImage(bytes);
+    if (base == null) return <double>[];
+    final img.Image resized = img.copyResize(base, width: _inputSize, height: _inputSize, interpolation: img.Interpolation.linear);
+
+    final intSize = _inputSize;
+    final rgb = resized.getBytes(order: img.ChannelOrder.rgb);
+    int p = 0;
+    final inputTensor = List.generate(1, (_) =>
+        List.generate(intSize, (_) =>
+            List.generate(intSize, (_) =>
+                List.generate(3, (_) => _isQuant ? rgb[p++] : (rgb[p++] / 255.0)))));
+
+    final outT = fx.getOutputTensors().first;
+    final outLen = outT.shape.last;
+    final output = _isQuant
+        ? List.generate(1, (_) => List<int>.filled(outLen, 0))
+        : List.generate(1, (_) => List<double>.filled(outLen, 0.0));
+
+    fx.run(inputTensor, output);
+
+    // Return as doubles
+    return List<double>.generate(
+      outLen,
+      (i) => _isQuant ? (output[0][i] as int) / 255.0 : (output[0][i] as double),
+    );
   }
 }

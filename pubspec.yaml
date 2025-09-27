@@ -71,9 +71,13 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
-    - assets/models/herbal_classifier_quantized.tflite
-    - assets/models/phase1_labels.txt
+    - assets/models/
     - assets/plants.json
+    # New model bundle (copy these files into assets/models/):
+    - assets/models/herbal_classifier.tflite
+    - assets/models/feature_extractor.tflite
+    - assets/models/complete_ood_stats.json
+    - assets/models/class_labels.txt
 
   # To add assets to your application, add an assets section, like this:
   # assets:

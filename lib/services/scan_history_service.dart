@@ -8,6 +8,8 @@ class ScanEntry {
   final DateTime timestamp;
   final bool success;
   final List<Map<String, dynamic>> candidates; // [{label:String, score:double}, ...]
+  final bool isOod; // true if marked out-of-distribution
+  final double? oodSim; // similarity (or inverse distance) used by OOD check
 
   ScanEntry({
     required this.name,
@@ -15,6 +17,8 @@ class ScanEntry {
     required this.timestamp,
     required this.success,
     required this.candidates,
+    this.isOod = false,
+    this.oodSim,
   });
 
   Map<String, dynamic> toJson() => {
@@ -23,6 +27,8 @@ class ScanEntry {
         'timestamp': timestamp.toIso8601String(),
         'success': success,
         'candidates': candidates,
+        'isOod': isOod,
+        'oodSim': oodSim,
       };
 
   factory ScanEntry.fromJson(Map<String, dynamic> json) => ScanEntry(
@@ -37,7 +43,8 @@ class ScanEntry {
               if (e is Map) {
                 final label = (e['label'] ?? '').toString();
                 final score = (e['score'] is num) ? (e['score'] as num).toDouble() : 0.0;
-                return {'label': label, 'score': score};
+                final sim = (e['oodSim'] is num) ? (e['oodSim'] as num).toDouble() : null;
+                return {'label': label, 'score': score, if (sim != null) 'oodSim': sim};
               }
               return {'label': '', 'score': 0.0};
             }).toList();
@@ -47,6 +54,8 @@ class ScanEntry {
             {'label': (json['name'] ?? 'Unknown').toString(), 'score': (json['confidence'] as num?)?.toDouble() ?? 0.0},
           ];
         }(),
+        isOod: json['isOod'] as bool? ?? false,
+        oodSim: (json['oodSim'] is num) ? (json['oodSim'] as num).toDouble() : null,
       );
 }
 

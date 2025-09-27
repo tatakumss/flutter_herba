@@ -6,6 +6,9 @@ import '../services/tflite_service.dart';
 import 'package:camera/camera.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/scan_history_service.dart';
+import '../services/ood_service.dart';
+import 'package:image/image.dart' as img;
+import '../services/collection_service.dart';
 
 class PlantScreen extends StatefulWidget {
   @override
@@ -20,24 +23,46 @@ class _PlantScreenState extends State<PlantScreen> {
 
   final _picker = ImagePicker();
   final _tflite = TFLiteService();
+  final _ood = OODService();
   CameraController? _cameraController;
   bool _flashOn = false;
   final _history = ScanHistoryService();
+  final _collections = CollectionService();
+
+  // Last scan context for saving to collection
+  String _lastLabel = 'Unknown';
+  double _lastConfidence = 0.0;
+  bool _lastIsOod = false;
+  List<Map<String, dynamic>> _lastCandidates = const [];
+  bool _savedToCollection = false;
 
   @override
   void initState() {
     super.initState();
     _initModel();
     _initCamera();
+    // Load OOD profile; non-blocking
+    _ood.load('assets/models/complete_ood_stats.json');
     _maybeShowTutorial();
   }
 
   Future<void> _initModel() async {
     try {
-      await _tflite.init();
+      await _tflite.init(
+        modelAsset: 'assets/models/herbal_classifier.tflite',
+        labelsAsset: 'assets/models/class_labels.txt',
+        extractorAsset: 'assets/models/feature_extractor.tflite',
+      );
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = 'Model not found. Please add assets/models/plant_classifier.tflite and labels.txt'; });
+      // Debug: surface the exact error in the console for troubleshooting
+      // ignore: avoid_print
+      print('TFLite init error: $e');
+      // Also show on UI so it's visible without console
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('TFLite init error: $e')),
+      );
+      setState(() { _error = 'Model or labels not found. Ensure assets/models/herbal_classifier.tflite and assets/models/class_labels.txt exist and are listed in pubspec.yaml.'; });
     }
   }
 
@@ -214,28 +239,64 @@ class _PlantScreenState extends State<PlantScreen> {
 
   Future<void> _classify(Uint8List bytes) async {
     if (!_tflite.isInitialized) return;
-    setState(() { _loading = true; _results = []; _error = null; });
+    setState(() { _loading = true; _results = []; _error = null; _savedToCollection = false; });
     try {
-      final res = await _tflite.classify(bytes, topK: 3);
+      // 1) Classify top-K (for UI)
+      final topKRes = await _tflite.classify(bytes, topK: 3);
+
+      // 2) Prepare inputs for full OOD pipeline
+      //    a) Full probability vector
+      final probs = await _tflite.predictProbs(bytes);
+      //    b) Embedding
+      final emb = await _tflite.getEmbedding(bytes);
+      //    c) Resized RGB 224 image for visual checks
+      final decoded = img.decodeImage(bytes);
+      final resized = decoded != null ? img.copyResize(decoded, width: 224, height: 224, interpolation: img.Interpolation.linear) : null;
+
+      // 3) Evaluate OOD if possible
+      bool isOod = false;
+      double oodScore = 0.0;
+      double calibratedConf = 0.0;
+      if (resized != null && probs.isNotEmpty && emb.isNotEmpty) {
+        final ev = _ood.evaluate(resizedRgb224: resized, probs: probs, embedding: emb);
+        isOod = (ev['isOOD'] == true);
+        oodScore = (ev['oodScore'] is num) ? (ev['oodScore'] as num).toDouble() : 0.0;
+        calibratedConf = (ev['calibratedConfidence'] is num) ? (ev['calibratedConfidence'] as num).toDouble() : 0.0;
+      }
+
+      // 4) Final results for UI
+      List<Map<String, dynamic>> finalRes = topKRes;
+      if (isOod) {
+        finalRes = [ { 'label': 'Unknown', 'score': 0.0 } ];
+      }
+
       if (!mounted) return;
-      setState(() { _results = res; });
-      // Persist top result to history if available
-      if (res.isNotEmpty) {
-        final top = res.first;
+      setState(() { _results = finalRes; });
+
+      // 5) Persist to history
+      final top = finalRes.isNotEmpty ? finalRes.first : null;
+      if (top != null) {
         final label = (top['label'] ?? 'Unknown').toString();
         final score = (top['score'] is num) ? (top['score'] as num).toDouble() : 0.0;
-        final candidates = res.take(3).map<Map<String, dynamic>>((e) {
+        final candidates = finalRes.take(3).map<Map<String, dynamic>>((e) {
           final l = (e['label'] ?? '').toString();
           final s = (e['score'] is num) ? (e['score'] as num).toDouble() : 0.0;
-          return {'label': l, 'score': s};
+          return {'label': l, 'score': s, 'oodSim': isOod ? oodScore : null};
         }).toList();
+        // Save to local state for Save-to-Collection
+        _lastLabel = label;
+        _lastConfidence = isOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : score);
+        _lastIsOod = isOod;
+        _lastCandidates = candidates;
         await _history.add(
           ScanEntry(
             name: label,
-            confidence: score,
+            confidence: isOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : score),
             timestamp: DateTime.now(),
-            success: true,
+            success: !isOod,
             candidates: candidates,
+            isOod: isOod,
+            oodSim: isOod ? oodScore : null,
           ),
         );
       }
@@ -602,6 +663,7 @@ class _PlantScreenState extends State<PlantScreen> {
     final titleStyle = theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700) ?? const TextStyle(fontSize: 16, fontWeight: FontWeight.w700);
     final labelStyle = theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600) ?? const TextStyle(fontSize: 14, fontWeight: FontWeight.w600);
     final percentStyle = theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600) ?? const TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
+    final isUnknown = results.isNotEmpty && (results.first['label']?.toString().toLowerCase() == 'unknown');
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -619,6 +681,77 @@ class _PlantScreenState extends State<PlantScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (isUnknown)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.withOpacity(0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.report_gmailerrorred_outlined, color: Colors.orange, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Unknown (LOW_CONFIDENCE). Results hidden by OOD protection.',
+                      style: theme.textTheme.bodyMedium?.copyWith(color: Colors.orange[800], fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // Save to Collection action + Saved badge
+          Row(
+            children: [
+              if (_savedToCollection)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.check_circle_outline, size: 16, color: Colors.green),
+                      SizedBox(width: 4),
+                      Text('Saved', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () async {
+                  try {
+                    await _collections.saveScan(
+                      name: _lastLabel,
+                      confidence: _lastConfidence,
+                      isOod: _lastIsOod,
+                      candidates: _lastCandidates,
+                    );
+                    if (!mounted) return;
+                    setState(() { _savedToCollection = true; });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Saved to your collection')),
+                    );
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Save failed: $e')),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.bookmark_add_outlined),
+                label: const Text('Save to collection'),
+              ),
+            ],
+          ),
           Text('Top matches', style: titleStyle),
           const SizedBox(height: 4),
           Text(

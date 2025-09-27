@@ -47,4 +47,7 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-analytics")
+    // Use published TensorFlow Lite artifacts (2.14.0) for Select TF Ops and GPU
+    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.14.0")
+    implementation("org.tensorflow:tensorflow-lite-gpu:2.14.0")
 }

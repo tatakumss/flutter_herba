@@ -83,6 +83,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         Icon(Icons.analytics_outlined, color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
                         Text('Top matches', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                        const SizedBox(width: 8),
+                        if (scan.isOod)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.report_gmailerrorred_outlined, size: 14, color: Colors.orange),
+                                const SizedBox(width: 4),
+                                Text('Unknown', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w700)),
+                              ],
+                            ),
+                          ),
                         const Spacer(),
                         IconButton(
                           visualDensity: VisualDensity.compact,
@@ -92,6 +108,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
+                    if (scan.isOod)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Text(
+                          'This scan was flagged as Unknown by OOD detection' +
+                              (scan.oodSim != null ? ' (similarity ${(scan.oodSim! * 100).toStringAsFixed(0)}%)' : ''),
+                          style: theme.textTheme.bodyMedium?.copyWith(color: Colors.orange[700], fontWeight: FontWeight.w600),
+                        ),
+                      ),
                     for (final cand in scan.candidates.take(3))
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
