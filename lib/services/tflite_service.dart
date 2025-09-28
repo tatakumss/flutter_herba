@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
+import 'dart:math' as math;
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:image/image.dart' as img;
 
@@ -76,45 +77,18 @@ class TFLiteService {
   }
 
   Future<List<Map<String, dynamic>>> classify(Uint8List bytes, {int topK = 3}) async {
-    if (_interpreter == null) throw StateError('Interpreter not initialized');
-    final img.Image? base = img.decodeImage(bytes);
-    if (base == null) throw StateError('Invalid image');
-    final img.Image resized = img.copyResize(base, width: _inputSize, height: _inputSize, interpolation: img.Interpolation.linear);
-
-    final intSize = _inputSize;
-    final rgb = resized.getBytes(order: img.ChannelOrder.rgb);
-
-    // Build input as nested lists [1,H,W,3]
-    int p = 0;
-    final inputTensor = List.generate(1, (_) =>
-        List.generate(intSize, (_) =>
-            List.generate(intSize, (_) =>
-                List.generate(3, (_) => _isQuant ? rgb[p++] : (rgb[p++] / 255.0)))));
-
-    // Prepare output [1,N]
-    final outputT = _interpreter!.getOutputTensors().first;
-    final numLabels = outputT.shape.last;
-    final outputTensor = _isQuant
-        ? List.generate(1, (_) => List<int>.filled(numLabels, 0))
-        : List.generate(1, (_) => List<double>.filled(numLabels, 0.0));
-
-    _interpreter!.run(inputTensor, outputTensor);
-
-    // Convert to doubles and topK
-    final scores = List<double>.generate(
-      numLabels,
-      (i) => _isQuant ? (outputTensor[0][i] as int) / 255.0 : (outputTensor[0][i] as double),
-    );
+    final probs = await this.predictProbs(bytes);
     final pairs = <Map<String, dynamic>>[];
-    for (int i = 0; i < numLabels; i++) {
+    for (int i = 0; i < probs.length; i++) {
       final name = (i < _labels.length && _labels[i].isNotEmpty) ? _labels[i] : 'Class $i';
-      pairs.add({'label': name, 'score': scores[i]});
+      pairs.add({'label': name, 'score': probs[i]});
     }
     pairs.sort((a, b) => (b['score'] as double).compareTo(a['score'] as double));
     return pairs.take(topK).toList();
   }
 
-  // Returns the full probability/logit-like scores as doubles in model order
+  // Returns the full probability vector in model order. If the model outputs logits
+  // or unnormalized scores, we apply softmax to get probabilities.
   Future<List<double>> predictProbs(Uint8List bytes) async {
     if (_interpreter == null) throw StateError('Interpreter not initialized');
     final img.Image? base = img.decodeImage(bytes);
@@ -138,10 +112,16 @@ class TFLiteService {
 
     _interpreter!.run(inputTensor, outputTensor);
 
-    return List<double>.generate(
+    final raw = List<double>.generate(
       numLabels,
-      (i) => _isQuant ? (outputTensor[0][i] as int) / 255.0 : (outputTensor[0][i] as double),
+      (i) => _isQuant ? (outputTensor[0][i] as int).toDouble() : (outputTensor[0][i] as double),
     );
+    final double sum = raw.fold(0.0, (a, b) => a + b);
+    // If already looks like probabilities, return; else softmax
+    if (sum > 0.98 && sum < 1.02 && raw.every((v) => v >= 0.0 && v <= 1.0)) {
+      return raw;
+    }
+    return _softmax(raw);
   }
 
   void dispose() {
@@ -170,16 +150,21 @@ class TFLiteService {
 
     final outT = fx.getOutputTensors().first;
     final outLen = outT.shape.last;
-    final output = _isQuant
-        ? List.generate(1, (_) => List<int>.filled(outLen, 0))
-        : List.generate(1, (_) => List<double>.filled(outLen, 0.0));
+    // Assume embedder outputs float32 (common). If quantized, we still treat as numbers and skip /255.
+    final output = List.generate(1, (_) => List<double>.filled(outLen, 0.0));
 
     fx.run(inputTensor, output);
 
     // Return as doubles
-    return List<double>.generate(
-      outLen,
-      (i) => _isQuant ? (output[0][i] as int) / 255.0 : (output[0][i] as double),
-    );
+    return List<double>.generate(outLen, (i) => (output[0][i] as double));
+  }
+
+  // Softmax utility for normalization
+  List<double> _softmax(List<double> x) {
+    if (x.isEmpty) return x;
+    final m = x.reduce((a, b) => a > b ? a : b);
+    final exps = x.map((v) => math.exp(v - m)).toList();
+    final s = exps.fold(0.0, (a, b) => a + b);
+    return exps.map((e) => e / (s + 1e-10)).toList();
   }
 }

@@ -35,6 +35,12 @@ class _PlantScreenState extends State<PlantScreen> {
   bool _lastIsOod = false;
   List<Map<String, dynamic>> _lastCandidates = const [];
   bool _savedToCollection = false;
+  String? _oodReason; // e.g., LOW_CONFIDENCE, HUMAN_DETECTED, etc.
+  double? _oodConf;
+  double? _oodScore;
+  double? _skinRatio;
+  double? _edgeDensity;
+  double? _greenRatio;
 
   @override
   void initState() {
@@ -43,7 +49,9 @@ class _PlantScreenState extends State<PlantScreen> {
     _initCamera();
     // Load OOD profile; non-blocking
     _ood.load('assets/models/complete_ood_stats.json');
-    _maybeShowTutorial();
+    // Temporarily disable auto tutorial to avoid blocking UI interactions
+    // You can open it anytime via the help icon in the header.
+    // _maybeShowTutorial();
   }
 
   Future<void> _initModel() async {
@@ -239,10 +247,22 @@ class _PlantScreenState extends State<PlantScreen> {
 
   Future<void> _classify(Uint8List bytes) async {
     if (!_tflite.isInitialized) return;
-    setState(() { _loading = true; _results = []; _error = null; _savedToCollection = false; });
+    setState(() {
+      _loading = true;
+      _results = [];
+      _error = null;
+      _savedToCollection = false;
+      _oodReason = null;
+      _oodConf = null;
+      _oodScore = null;
+      _skinRatio = null;
+      _edgeDensity = null;
+      _greenRatio = null;
+    });
     try {
       // 1) Classify top-K (for UI)
       final topKRes = await _tflite.classify(bytes, topK: 3);
+      // Reduce noise: omit Top-3 console print
 
       // 2) Prepare inputs for full OOD pipeline
       //    a) Full probability vector
@@ -257,23 +277,42 @@ class _PlantScreenState extends State<PlantScreen> {
       bool isOod = false;
       double oodScore = 0.0;
       double calibratedConf = 0.0;
+      String? rejReason;
       if (resized != null && probs.isNotEmpty && emb.isNotEmpty) {
         final ev = _ood.evaluate(resizedRgb224: resized, probs: probs, embedding: emb);
         isOod = (ev['isOOD'] == true);
         oodScore = (ev['oodScore'] is num) ? (ev['oodScore'] as num).toDouble() : 0.0;
         calibratedConf = (ev['calibratedConfidence'] is num) ? (ev['calibratedConfidence'] as num).toDouble() : 0.0;
+        final rr = ev['rejectionReason'];
+        rejReason = (rr is String && rr.trim().isNotEmpty) ? rr.trim() : null;
+        final skinRatio = (ev['skinRatio'] is num) ? (ev['skinRatio'] as num).toDouble() : null;
+        final edgeDensity = (ev['edgeDensity'] is num) ? (ev['edgeDensity'] as num).toDouble() : null;
+        final greenRatio = (ev['greenRatio'] is num) ? (ev['greenRatio'] as num).toDouble() : null;
+        _oodConf = calibratedConf;
+        _oodScore = oodScore;
+        _skinRatio = skinRatio;
+        _edgeDensity = edgeDensity;
+        _greenRatio = greenRatio;
+        // Single concise debugPrint
+        // ignore: avoid_print
+        debugPrint('[OOD] reason=${rejReason ?? 'null'} conf=${calibratedConf.toStringAsFixed(3)} ood=${oodScore.toStringAsFixed(3)}'
+            '${skinRatio != null ? ' skin=${skinRatio.toStringAsFixed(3)}' : ''}'
+            '${edgeDensity != null ? ' edge=${edgeDensity.toStringAsFixed(3)}' : ''}'
+            '${greenRatio != null ? ' green=${greenRatio.toStringAsFixed(3)}' : ''}');
       }
 
-      // 4) Final results for UI
+      // 4) Final results for UI: hide predictions for hard OOD reasons
       List<Map<String, dynamic>> finalRes = topKRes;
-      if (isOod) {
-        finalRes = [ { 'label': 'Unknown', 'score': 0.0 } ];
+      final hardReasons = {'HUMAN_DETECTED', 'NON_PLANT_VISUAL', 'STATISTICAL_OOD'};
+      final hardOod = (rejReason != null) && hardReasons.contains(rejReason);
+      if (hardOod) {
+        finalRes = [ {'label': 'Unknown', 'score': 0.0} ];
       }
 
       if (!mounted) return;
-      setState(() { _results = finalRes; });
+      setState(() { _results = finalRes; _oodReason = rejReason; });
 
-      // 5) Persist to history
+      // 5) Persist to history (mark as OOD when hard rejection)
       final top = finalRes.isNotEmpty ? finalRes.first : null;
       if (top != null) {
         final label = (top['label'] ?? 'Unknown').toString();
@@ -281,22 +320,22 @@ class _PlantScreenState extends State<PlantScreen> {
         final candidates = finalRes.take(3).map<Map<String, dynamic>>((e) {
           final l = (e['label'] ?? '').toString();
           final s = (e['score'] is num) ? (e['score'] as num).toDouble() : 0.0;
-          return {'label': l, 'score': s, 'oodSim': isOod ? oodScore : null};
+          return {'label': l, 'score': s, 'oodSim': hardOod ? oodScore : null};
         }).toList();
         // Save to local state for Save-to-Collection
         _lastLabel = label;
-        _lastConfidence = isOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : score);
-        _lastIsOod = isOod;
+        _lastConfidence = hardOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : score);
+        _lastIsOod = hardOod;
         _lastCandidates = candidates;
         await _history.add(
           ScanEntry(
             name: label,
-            confidence: isOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : score),
+            confidence: hardOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : score),
             timestamp: DateTime.now(),
-            success: !isOod,
+            success: !hardOod,
             candidates: candidates,
-            isOod: isOod,
-            oodSim: isOod ? oodScore : null,
+            isOod: hardOod,
+            oodSim: hardOod ? oodScore : null,
           ),
         );
       }
@@ -664,6 +703,7 @@ class _PlantScreenState extends State<PlantScreen> {
     final labelStyle = theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600) ?? const TextStyle(fontSize: 14, fontWeight: FontWeight.w600);
     final percentStyle = theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600) ?? const TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
     final isUnknown = results.isNotEmpty && (results.first['label']?.toString().toLowerCase() == 'unknown');
+    final lowConfidence = _oodReason == 'LOW_CONFIDENCE' && !isUnknown;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -697,7 +737,18 @@ class _PlantScreenState extends State<PlantScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Unknown (LOW_CONFIDENCE). Results hidden by OOD protection.',
+                      // Only show plain 'Unknown' for HUMAN_DETECTED so the app presents just 'plants' or 'Unknown'.
+                      _oodReason == 'HUMAN_DETECTED'
+                        ? 'Unknown'
+                        : (
+                            'Unknown' + (_oodReason != null ? ' (${_oodReason})' : '') +
+                            '. ' +
+                            (_oodConf != null ? 'conf ${_oodConf!.toStringAsFixed(2)}  ' : '') +
+                            (_oodScore != null ? 'ood ${_oodScore!.toStringAsFixed(2)}  ' : '') +
+                            (_skinRatio != null ? 'skin ${_skinRatio!.toStringAsFixed(2)}  ' : '') +
+                            (_edgeDensity != null ? 'edge ${_edgeDensity!.toStringAsFixed(2)}  ' : '') +
+                            (_greenRatio != null ? 'green ${_greenRatio!.toStringAsFixed(2)}' : '')
+                          ),
                       style: theme.textTheme.bodyMedium?.copyWith(color: Colors.orange[800], fontWeight: FontWeight.w700),
                     ),
                   ),

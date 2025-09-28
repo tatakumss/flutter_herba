@@ -63,16 +63,15 @@ class OODService {
               .toList();
         }
       }
-
       _profile = OODProfile(
-        skinThreshold: (thresholds['skin_detection'] as num?)?.toDouble() ?? 0.35,
-        edgeThreshold: (thresholds['edge_density'] as num?)?.toDouble() ?? 0.05,
+        skinThreshold: (thresholds['skin_detection'] as num?)?.toDouble() ?? 0.50,
+        edgeThreshold: (thresholds['edge_density'] as num?)?.toDouble() ?? 0.06,
         temperature: (m['temperature'] as num?)?.toDouble() ?? 1.0,
-        confThreshold: (thresholds['confidence'] as num?)?.toDouble() ?? 0.3,
+        confThreshold: (thresholds['confidence'] as num?)?.toDouble() ?? 0.45,
         statThresholds: statThresh,
         weights: weights,
-        oodThreshold: (thresholds['ood_detection'] as num?)?.toDouble() ?? 0.5,
-        strictThreshold: (thresholds['strict_rejection'] as num?)?.toDouble() ?? 0.8,
+        oodThreshold: (thresholds['ood_detection'] as num?)?.toDouble() ?? 0.80,
+        strictThreshold: (thresholds['strict_rejection'] as num?)?.toDouble() ?? 0.95,
         featureMeans: means,
         invCov: invCov,
       );
@@ -93,7 +92,7 @@ class OODService {
   // Returns: {isOOD, rejectionReason, calibratedConfidence, oodScore, skinRatio, edgeDensity, entropy, maxSoftmax, mahalanobis}
   Map<String, dynamic> evaluate({
     required img.Image resizedRgb224,
-    required List<double> probs, // raw model outputs (pre-softmax or probs), length N
+    required List<double> probs, // raw model outputs (pre-softmax logits OR probabilities), length N
     required List<double> embedding, // from feature_extractor
   }) {
     final prof = _profile;
@@ -101,22 +100,35 @@ class OODService {
       return {"isOOD": false, "rejectionReason": null, "calibratedConfidence": _max(probs)};
     }
 
+    // Sanity-correct thresholds and apply safety floors in case JSON is too lax
+    double oodTh = prof.oodThreshold;
+    double strictTh = (prof.strictThreshold <= oodTh) ? (oodTh + 0.15) : prof.strictThreshold;
+    // Floors to avoid over-rejection from overly low JSON thresholds
+    oodTh = math.max(oodTh, 0.80);
+    strictTh = math.max(strictTh, 0.95);
+
     // 1) Temperature scaling + softmax
-    final scaled = _softmax(_div(probs, prof.temperature));
-    final calibratedConf = _max(scaled);
-
-    // 2) Confidence threshold
-    if (calibratedConf < prof.confThreshold) {
-      return {
-        'isOOD': true,
-        'rejectionReason': 'LOW_CONFIDENCE',
-        'calibratedConfidence': calibratedConf,
-        'oodScore': 1.0 - calibratedConf,
-      };
+    // If 'probs' already look like a probability distribution, apply temperature using power normalization.
+    // Else assume logits and do logits/T then softmax.
+    late final List<double> calibrated;
+    if (_looksLikeProbs(probs)) {
+      // Power scaling: p_i^(1/T) / sum_j p_j^(1/T)
+      final powed = probs.map((p) => math.pow(p.clamp(1e-10, 1.0), 1.0 / (prof.temperature == 0 ? 1.0 : prof.temperature)) as double).toList();
+      final s = powed.fold(0.0, (a, b) => a + b);
+      calibrated = powed.map((e) => e / (s + 1e-12)).toList();
+    } else {
+      calibrated = _softmax(_div(probs, prof.temperature));
     }
+    final calibratedConf = _max(calibrated);
 
-    // 3) Visual OOD checks: skin detection (HSV) and edge density
+    // 2) Confidence threshold (soft gate)
+    // Do NOT reject only due to low confidence. We'll combine this with statistical score later.
+    final double confGate = math.max(0.35, prof.confThreshold);
+    final bool lowConf = calibratedConf < confGate;
+
+    // 3) Visual OOD checks: skin detection (HSV), green ratio and edge density
     final skinRatio = _skinRatio(resizedRgb224);
+    final greenRatio = _greenRatio(resizedRgb224);
     final edgeDensity = _edgeDensity(resizedRgb224);
     if (skinRatio > prof.skinThreshold) {
       return {
@@ -125,22 +137,26 @@ class OODService {
         'calibratedConfidence': calibratedConf,
         'skinRatio': skinRatio,
         'edgeDensity': edgeDensity,
+        'greenRatio': greenRatio,
       };
     }
-    if (edgeDensity < prof.edgeThreshold) {
+    // Require some vegetation color or enough texture (succulent-friendly):
+    // Only reject when ALL are true: green very low AND texture very low AND confidence low
+    if (greenRatio < 0.04 && edgeDensity < 0.03 && calibratedConf < 0.45) {
       return {
         'isOOD': true,
         'rejectionReason': 'NON_PLANT_VISUAL',
         'calibratedConfidence': calibratedConf,
         'skinRatio': skinRatio,
         'edgeDensity': edgeDensity,
+        'greenRatio': greenRatio,
       };
     }
 
     // 4) Statistical OOD features
     final scores = <String, double>{};
     if (prof.statThresholds.containsKey('entropy')) {
-      final entropy = _entropy(scaled);
+      final entropy = _entropy(calibrated);
       final th = prof.statThresholds['entropy']!;
       scores['entropy'] = math.min(1.0, entropy / (th + 1e-10));
     }
@@ -169,7 +185,7 @@ class OODService {
     });
     final oodScore = wsum > 0 ? total / wsum : 0.0;
 
-    if (oodScore > prof.strictThreshold || calibratedConf < 0.3) {
+    if (oodScore > strictTh || calibratedConf < 0.15) {
       return {
         'isOOD': true,
         'rejectionReason': 'STATISTICAL_OOD',
@@ -179,7 +195,7 @@ class OODService {
         'skinRatio': skinRatio,
         'edgeDensity': edgeDensity,
       };
-    } else if (oodScore > prof.oodThreshold) {
+    } else if (oodScore > oodTh) {
       return {
         'isOOD': true,
         'rejectionReason': 'STATISTICAL_OOD',
@@ -188,6 +204,19 @@ class OODService {
         'individualScores': scores,
         'skinRatio': skinRatio,
         'edgeDensity': edgeDensity,
+        'greenRatio': greenRatio,
+      };
+    } else if (lowConf && oodScore > (0.3 * oodTh)) {
+      // Only reject for low confidence when statistical signals are moderately high as well
+      return {
+        'isOOD': true,
+        'rejectionReason': 'LOW_CONFIDENCE',
+        'calibratedConfidence': calibratedConf,
+        'oodScore': oodScore,
+        'individualScores': scores,
+        'skinRatio': skinRatio,
+        'edgeDensity': edgeDensity,
+        'greenRatio': greenRatio,
       };
     }
 
@@ -199,6 +228,7 @@ class OODService {
       'individualScores': scores,
       'skinRatio': skinRatio,
       'edgeDensity': edgeDensity,
+      'greenRatio': greenRatio,
     };
   }
 
@@ -323,5 +353,39 @@ class OODService {
     // Convert to 0..180 range as in OpenCV HSV
     h = h / 2.0;
     return [h, s, v];
+  }
+
+  // Helper: detect if a vector already looks like probabilities
+  bool _looksLikeProbs(List<double> x) {
+    if (x.isEmpty) return false;
+    double sum = 0.0;
+    for (final v in x) {
+      if (v.isNaN || v.isInfinite) return false;
+      if (v < -1e-6 || v > 1.000001) return false;
+      sum += v;
+    }
+    return (sum > 0.98 && sum < 1.02);
+  }
+
+  // Vegetation heuristic: fraction of pixels that are green-ish with reasonable saturation/value.
+  // Hue range 35..95 (OpenCV 0..180 space), S >= 0.20, V >= 0.15
+  double _greenRatio(img.Image im) {
+    final w = im.width, h = im.height;
+    if (w <= 0 || h <= 0) return 0.0;
+    int count = 0, green = 0;
+    for (int y = 0; y < h; y++) {
+      for (int x = 0; x < w; x++) {
+        final p = im.getPixel(x, y);
+        final hsv = _rgbToHsv(p.r.toDouble(), p.g.toDouble(), p.b.toDouble());
+        final hdeg = hsv[0]; // 0..180
+        final s = hsv[1];
+        final v = hsv[2];
+        count++;
+        if (hdeg >= 35 && hdeg <= 95 && s >= 0.20 && v >= 0.15) {
+          green++;
+        }
+      }
+    }
+    return green / count;
   }
 }
