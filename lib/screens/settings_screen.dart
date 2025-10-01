@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../config/app_config.dart';
 import '../services/theme_controller.dart';
+import 'test_verification_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -51,6 +52,34 @@ class SettingsScreen extends StatelessWidget {
                 ),
               );
             },
+          ),
+          const SizedBox(height: 24),
+          
+          // Development section
+          Text(
+            'Development & Testing',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).textTheme.titleMedium?.color,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: ListTile(
+              leading: const Icon(Icons.verified_user),
+              title: const Text('Email Verification Test'),
+              subtitle: const Text('Test and troubleshoot email verification'),
+              trailing: const Icon(Icons.arrow_forward_ios),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => TestVerificationScreen()),
+                );
+              },
+            ),
           ),
           const SizedBox(height: 24),
         ],

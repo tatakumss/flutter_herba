@@ -4,7 +4,6 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 import '../services/tflite_service.dart';
 import 'package:camera/camera.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/scan_history_service.dart';
 import '../services/ood_service.dart';
 import 'package:image/image.dart' as img;
@@ -96,23 +95,6 @@ class _PlantScreenState extends State<PlantScreen> {
       setState(() { _error = 'Camera not available: $e'; });
     }
   }
-
-  Future<void> _maybeShowTutorial() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      const key = 'seen_plant_tutorial_v1';
-      final seen = prefs.getBool(key) ?? false;
-      if (!seen) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _showTutorial();
-        });
-        await prefs.setBool(key, true);
-      }
-    } catch (_) {
-      // ignore storage errors
-    }
-  }
-
   void _showTutorial() {
     showDialog(
       context: context,

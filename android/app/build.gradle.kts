@@ -3,7 +3,6 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")
 }
 
 android {
@@ -24,7 +23,7 @@ android {
         // Unique Application ID
         applicationId = "com.example.herbapedia"
         // ✅ Set Firebase required minimum SDK
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -44,9 +43,6 @@ flutter {
 }
 
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
-    implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-analytics")
     // Use published TensorFlow Lite artifacts (2.14.0) for Select TF Ops and GPU
     implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.14.0")
     implementation("org.tensorflow:tensorflow-lite-gpu:2.14.0")

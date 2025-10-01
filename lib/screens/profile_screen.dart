@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import '../config/app_config.dart';
 import '../services/auth_service.dart';
 import 'edit_profile_screen.dart';
-import '../services/profile_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/profile_local_store.dart';
 import 'about_screen.dart';
+import '../widgets/email_verification_banner.dart';
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -14,71 +13,24 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _authService = AuthService();
-  final ProfileService _profileService = ProfileService();
   final ProfileLocalStore _localStore = ProfileLocalStore();
 
   String? _name;
   DateTime? _birthday;
   String? _photoUrl;
   String? _bio;
-  bool _firestoreReady = false;
 
   @override
   void initState() {
     super.initState();
     _name = _authService.currentUser?.displayName ?? _authService.currentUser?.email;
-    _birthday = null; // will be set from edit screen until Firestore is wired
+    _birthday = null;
     _photoUrl = null;
     _initAndLoad();
   }
 
   Future<void> _initAndLoad() async {
-    try {
-      final user = _authService.currentUser;
-      if (user == null) return;
-      await _profileService.ensureUserDoc(
-        user.uid,
-        email: user.email,
-        displayName: user.displayName,
-      );
-      final data = await _profileService.getProfile(user.uid);
-      if (!mounted) return;
-      setState(() {
-        _firestoreReady = true;
-        if (data != null) {
-          final name = data['name'];
-          final birthday = data['birthday'];
-          final photoUrl = data['photoUrl'];
-          final bio = data['bio'];
-          if (name is String && name.isNotEmpty) {
-            _name = name;
-          }
-          if (birthday != null) {
-            try {
-              if (birthday is DateTime) {
-                _birthday = birthday;
-              } else if (birthday is Timestamp) {
-                _birthday = birthday.toDate();
-              } else if (birthday is String) {
-                _birthday = DateTime.tryParse(birthday);
-              }
-            } catch (_) {}
-          }
-          if (photoUrl is String && photoUrl.isNotEmpty) {
-            _photoUrl = photoUrl;
-          }
-          if (bio is String && bio.isNotEmpty) {
-            _bio = bio;
-          }
-        }
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() { _firestoreReady = false; });
-      // Silently continue in local-only mode when Firestore isn't available
-    }
-
-    // Load local cached profile as fallback or to prime UI before Firestore
+    // Load local profile data
     try {
       final local = await _localStore.load();
       if (!mounted) return;
@@ -138,46 +90,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _bio = bio.isNotEmpty ? bio : null;
         }
       });
-      // Persist to Firestore (if available) and optionally update displayName
-      if (user != null) {
-        if (_firestoreReady) {
-          try {
-            final photoToSave = (_photoUrl != null && (_photoUrl!.startsWith('http://') || _photoUrl!.startsWith('https://')))
-                ? _photoUrl
-                : null; // avoid saving local file:// paths to Firestore
-            await _profileService.updateProfile(user.uid, name: _name, birthday: _birthday, photoUrl: photoToSave, bio: _bio);
-          } catch (_) {
-            // Ignore persistence errors while user lacks Firestore permissions
-          }
-        }
-        // Always persist locally as cache/fallback
-        try {
-          await _localStore.save(name: _name, birthday: _birthday, photoUrl: _photoUrl, bio: _bio);
-        } catch (_) {}
-        if (_name != null && _name!.isNotEmpty) {
-          try { await user.updateDisplayName(_name); } catch (_) {}
-        }
-      }
+      
+      // Persist locally
+      await _localStore.save(
+        name: _name,
+        birthday: _birthday,
+        photoUrl: _photoUrl,
+        bio: _bio,
+      );
     }
   }
-
-  String _formatDate(DateTime d) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${d.year}-${two(d.month)}-${two(d.day)}';
-  }
-
-  int _ageFrom(DateTime d) {
-    final today = DateTime.now();
-    int age = today.year - d.year;
-    if (today.month < d.month || (today.month == d.month && today.day < d.day)) {
-      age--;
-    }
-    return age;
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -223,6 +149,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 32),
               
+              // Email Verification Banner
+              EmailVerificationBanner(),
               
               // Profile Card
               Container(
@@ -280,7 +208,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     // Name
                     Text(
                       _name ?? AppConfig.defaultUserName,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -357,13 +285,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.logout,
                         color: Colors.red,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
-                      Text(
+                      const Text(
                         "Logout",
                         style: TextStyle(
                           color: Colors.red,
@@ -382,7 +310,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-
   Widget _buildMenuItem({
     required IconData icon,
     required String title,
@@ -392,19 +319,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: (Theme.of(context).brightness == Brightness.dark)
-                  ? Colors.black.withOpacity(0.5)
-                  : Colors.black.withOpacity(0.08),
-              blurRadius: 15,
-              offset: const Offset(0, 4),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.black.withOpacity(0.3)
+                  : Colors.grey.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -427,10 +354,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title,
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: (Theme.of(context).brightness == Brightness.dark)
-                          ? const Color(0xFF81C784) // Light green for dark mode
-                          : AppConfig.primaryDark,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF81C784)
+                          : Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -438,16 +365,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     subtitle,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.75),
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
                     ),
                   ),
                 ],
               ),
             ),
             Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: Theme.of(context).iconTheme.color?.withOpacity(0.6),
+              Icons.chevron_right,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey[400]
+                  : Colors.grey[600],
             ),
           ],
         ),
