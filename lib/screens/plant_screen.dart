@@ -438,85 +438,111 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    "Plant Scanner",
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xFF81C784)
-                          : AppConfig.primaryDark,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        if (Navigator.canPop(context))
+                          InkWell(
+                            onTap: () => Navigator.of(context).maybePop(),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Icon(
+                                Icons.arrow_back,
+                                size: 24,
+                                color: Theme.of(context).textTheme.bodyLarge?.color,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            "Plant Scanner",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFF81C784)
+                                  : AppConfig.primaryDark,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Row(children: [
-                    // Model selector
-                    PopupMenuButton<String>(
-                      tooltip: 'Select model',
-                      onSelected: (k) => _switchModel(k),
-                      itemBuilder: (ctx) => _modelOptions.map((m) {
-                        final key = m['key']!;
-                        final name = m['name']!;
-                        return PopupMenuItem<String>(
-                          value: key,
-                          child: Row(
-                            children: [
-                              if (_selectedModelKey == key)
-                                const Icon(Icons.check, size: 16)
-                              else
-                                const SizedBox(width: 16),
-                              const SizedBox(width: 8),
-                              Text(name),
+                  Row(
+                    children: [
+                      // Model selector
+                      PopupMenuButton<String>(
+                        tooltip: 'Select model',
+                        onSelected: (k) => _switchModel(k),
+                        itemBuilder: (ctx) => _modelOptions.map((m) {
+                          final key = m['key']!;
+                          final name = m['name']!;
+                          return PopupMenuItem<String>(
+                            value: key,
+                            child: Row(
+                              children: [
+                                if (_selectedModelKey == key)
+                                  const Icon(Icons.check, size: 16)
+                                else
+                                  const SizedBox(width: 16),
+                                const SizedBox(width: 8),
+                                Text(name),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
                             ],
                           ),
-                        );
-                      }).toList(),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.swap_horiz, size: 18),
-                            const SizedBox(width: 6),
-                            Text(_modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first)['name']!),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    InkWell(
-                    onTap: _showTutorial,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.swap_horiz, size: 18),
+                              const SizedBox(width: 6),
+                              Text(_modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first)['name']!),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                      child: Icon(
-                        Icons.help_outline,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 24,
+                      const SizedBox(width: 10),
+                      InkWell(
+                        onTap: _showTutorial,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.help_outline,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 24,
+                          ),
+                        ),
                       ),
-                    ),
-                    ),
-                  ]),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -885,11 +911,18 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
               TextButton.icon(
                 onPressed: () async {
                   try {
+                    if (_previewBytes == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Nothing to save: capture or pick an image first.')),
+                      );
+                      return;
+                    }
                     await _collections.saveScan(
                       name: _lastLabel,
                       confidence: _lastConfidence,
                       isOod: _lastIsOod,
                       candidates: _lastCandidates,
+                      imageBytes: _previewBytes!,
                     );
                     if (!mounted) return;
                     setState(() { _savedToCollection = true; });

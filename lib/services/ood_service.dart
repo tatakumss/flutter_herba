@@ -38,6 +38,7 @@ class OODProfile {
 
 class OODService {
   OODProfile? _profile;
+  bool _strictSkinGate = false; // enable stricter HUMAN_DETECTED only for Kaggle assets
 
   bool get ready => _profile != null;
 
@@ -45,6 +46,8 @@ class OODService {
     try {
       final raw = await rootBundle.loadString(assetPath);
       final m = json.decode(raw) as Map<String, dynamic>;
+      // Enable strict guard only for Kaggle profiles
+      _strictSkinGate = assetPath.toLowerCase().contains('kaggle');
 
       final thresholds = (m['thresholds'] as Map?)?.cast<String, dynamic>() ?? const {};
       final statThresh = (m['statistical_thresholds'] as Map?)?.map((k, v) => MapEntry(k.toString(), (v is Map && v['threshold'] is num) ? (v['threshold'] as num).toDouble() : (v as num?)?.toDouble() ?? 0.0)) ?? <String, double>{};
@@ -130,7 +133,22 @@ class OODService {
     final skinRatio = _skinRatio(resizedRgb224);
     final greenRatio = _greenRatio(resizedRgb224);
     final edgeDensity = _edgeDensity(resizedRgb224);
-    if (skinRatio > prof.skinThreshold) {
+    // HUMAN_DETECTED:
+    // - Kaggle (strict mode): require high skin + low vegetation + low texture
+    // - V1/others: original behavior (skin threshold alone)
+    if (_strictSkinGate) {
+      final double skinTh = math.max(0.90, prof.skinThreshold);
+      if (skinRatio > skinTh && greenRatio < 0.08 && edgeDensity < 0.12) {
+        return {
+          'isOOD': true,
+          'rejectionReason': 'HUMAN_DETECTED',
+          'calibratedConfidence': calibratedConf,
+          'skinRatio': skinRatio,
+          'edgeDensity': edgeDensity,
+          'greenRatio': greenRatio,
+        };
+      }
+    } else if (skinRatio > prof.skinThreshold) {
       return {
         'isOOD': true,
         'rejectionReason': 'HUMAN_DETECTED',

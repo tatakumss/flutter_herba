@@ -25,6 +25,7 @@ class AppConfig {
   // Appwrite Configuration
   static const String appwriteDatabaseId = 'pediaherb_db'; // Database ID
   static const String appwriteStorageBucketId = 'profile_photos'; // Storage bucket ID
+  static const String scansBucketId = 'scans'; // Storage bucket for saved scans
   
   // Collection IDs
   static const String usersCollectionId = 'users';
