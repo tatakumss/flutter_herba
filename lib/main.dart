@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'config/app_config.dart';
 import 'widgets/auth_wrapper.dart';
+import 'widgets/verification_url_wrapper.dart';
 import 'screens/settings_screen.dart';
 import 'services/theme_controller.dart';
+import 'services/appwrite_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  
+  // Initialize Appwrite
+  AppwriteService.initialize();
+  
+  // Initialize theme controller
   await ThemeController.init();
+  
   runApp(MyApp());
 }
 
@@ -70,7 +76,7 @@ class MyApp extends StatelessWidget {
                   titleMedium: const TextStyle(color: Color(0xFF81C784)),
                 ),
           ),
-          home: AuthWrapper(),
+          home: VerificationUrlWrapper(child: AuthWrapper()),
           routes: {
             '/settings': (context) => const SettingsScreen(),
           },

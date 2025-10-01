@@ -1,28 +1,53 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:appwrite/appwrite.dart';
+import 'appwrite_service.dart';
+import '../config/app_config.dart';
 
 class ProfileService {
-  final _db = FirebaseFirestore.instance;
-
-  DocumentReference<Map<String, dynamic>> _userDoc(String uid) =>
-      _db.collection('users').doc(uid);
-
   Future<Map<String, dynamic>?> getProfile(String uid) async {
-    final snap = await _userDoc(uid).get();
-    return snap.data();
+    try {
+      final document = await AppwriteService.databases.getDocument(
+        databaseId: AppConfig.appwriteDatabaseId,
+        collectionId: AppConfig.usersCollectionId,
+        documentId: uid,
+      );
+      return document.data;
+    } on AppwriteException catch (e) {
+      if (e.code == 404) {
+        // Document doesn't exist
+        return null;
+      }
+      throw e;
+    }
   }
 
   Future<void> ensureUserDoc(String uid, {String? email, String? displayName}) async {
-    final ref = _userDoc(uid);
-    final snap = await ref.get();
-    if (!snap.exists) {
-      await ref.set({
-        'name': displayName ?? email ?? '',
-        'birthday': null,
-        'photoUrl': null,
-        'bio': null,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+    try {
+      // Check if document exists
+      await AppwriteService.databases.getDocument(
+        databaseId: AppConfig.appwriteDatabaseId,
+        collectionId: AppConfig.usersCollectionId,
+        documentId: uid,
+      );
+    } on AppwriteException catch (e) {
+      if (e.code == 404) {
+        // Document doesn't exist, create it
+        await AppwriteService.databases.createDocument(
+          databaseId: AppConfig.appwriteDatabaseId,
+          collectionId: AppConfig.usersCollectionId,
+          documentId: uid,
+          data: {
+            'name': displayName ?? email ?? '',
+            'email': email ?? '',
+            'birthday': null,
+            'photoUrl': null,
+            'bio': null,
+            'createdAt': DateTime.now().toIso8601String(),
+            'updatedAt': DateTime.now().toIso8601String(),
+          },
+        );
+      } else {
+        throw e;
+      }
     }
   }
 
@@ -34,21 +59,23 @@ class ProfileService {
     String? bio,
   }) async {
     final data = <String, dynamic>{
-      if (name != null) 'name': name,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': DateTime.now().toIso8601String(),
     };
+    
+    if (name != null) data['name'] = name;
     if (birthday != null) {
-      data['birthday'] = Timestamp.fromDate(birthday);
-    } else if (birthday == null) {
-      // Explicitly allow clearing birthday by passing null
+      data['birthday'] = birthday.toIso8601String();
+    } else {
       data['birthday'] = null;
     }
-    if (photoUrl != null) {
-      data['photoUrl'] = photoUrl;
-    }
-    if (bio != null) {
-      data['bio'] = bio;
-    }
-    await _userDoc(uid).set(data, SetOptions(merge: true));
+    if (photoUrl != null) data['photoUrl'] = photoUrl;
+    if (bio != null) data['bio'] = bio;
+
+    await AppwriteService.databases.updateDocument(
+      databaseId: AppConfig.appwriteDatabaseId,
+      collectionId: AppConfig.usersCollectionId,
+      documentId: uid,
+      data: data,
+    );
   }
 }

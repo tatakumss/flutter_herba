@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:firebase_core/firebase_core.dart' show FirebaseException;
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import '../config/app_config.dart';
+import '../services/auth_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String userId;
@@ -28,6 +28,7 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _bioController;
+  final AuthService _authService = AuthService();
   DateTime? _birthday;
   String? _photoUrl;
   bool _uploading = false;
@@ -98,69 +99,41 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _pickAndUploadAvatar() async {
     if (_picking || _uploading) return; // prevent re-entrancy / double taps
+    
+    setState(() { _picking = true; });
+    
     try {
-      setState(() { _picking = true; });
       if (widget.userId.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('You must be signed in to update your photo.')),
         );
         return;
       }
+      
       final picker = ImagePicker();
       final picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, imageQuality: 85);
       if (picked == null) return;
+      
       setState(() => _uploading = true);
 
-      try {
-        final fileBytes = await picked.readAsBytes();
-        final storageRef = FirebaseStorage.instance.ref().child('avatars/${widget.userId}/profile.jpg');
-        final metadata = SettableMetadata(contentType: 'image/jpeg');
-        final task = await storageRef.putData(fileBytes, metadata);
-        // Retry getDownloadURL to avoid transient 'object-not-found' right after upload
-        Future<String> _retryGetUrl(Reference ref, {int attempts = 5}) async {
-          FirebaseException? lastErr;
-          for (int i = 0; i < attempts; i++) {
-            try {
-              return await ref.getDownloadURL();
-            } on FirebaseException catch (e) {
-              lastErr = e;
-              if (e.code != 'object-not-found') break; // only retry on object-not-found
-              await Future.delayed(Duration(milliseconds: 250 * (i + 1)));
-            }
-          }
-          throw lastErr ?? FirebaseException(plugin: 'storage', code: 'unknown');
-        }
-        if (task.state != TaskState.success) {
-          throw FirebaseException(plugin: 'storage', code: 'upload-failed');
-        }
-        final url = await _retryGetUrl(storageRef);
-
-        if (!mounted) return;
-        setState(() {
-          _photoUrl = url;
-          _uploading = false;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile photo updated')),
-        );
-      } on FirebaseException catch (_) {
-        // Fallback: save locally if Storage isn't available
-        final localPath = await _saveAvatarLocally(picked);
-        if (!mounted) return;
-        setState(() {
-          _photoUrl = localPath; // file://...
-          _uploading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile photo saved locally')),
-        );
-      }
+      // Save locally only (Firebase Storage removed)
+      final localPath = await _saveAvatarLocally(picked);
+      if (!mounted) return;
+      
+      setState(() {
+        _photoUrl = localPath; // file://...
+        _uploading = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile photo saved locally')),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _uploading = false);
-      final msg = e is FirebaseException ? 'Failed to update photo: ${e.code}' : 'Failed to update photo: $e';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update photo: $e')),
+      );
     } finally {
       if (mounted) {
         setState(() { _picking = false; });
@@ -177,6 +150,241 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final file = File('${avatarsDir.path}/profile.jpg');
     await file.writeAsBytes(await picked.readAsBytes(), flush: true);
     return 'file://${file.path}';
+  }
+
+  Future<void> _showChangePasswordDialog() async {
+    final TextEditingController currentPasswordController = TextEditingController();
+    final TextEditingController newPasswordController = TextEditingController();
+    final TextEditingController confirmPasswordController = TextEditingController();
+    bool obscureCurrentPassword = true;
+    bool obscureNewPassword = true;
+    bool obscureConfirmPassword = true;
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Row(
+                children: [
+                  Icon(Icons.lock_outline, color: AppConfig.primaryColor),
+                  const SizedBox(width: 8),
+                  const Text('Change Password'),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Enter your current password and choose a new one.',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Current Password Field
+                    TextField(
+                      controller: currentPasswordController,
+                      obscureText: obscureCurrentPassword,
+                      decoration: InputDecoration(
+                        labelText: 'Current Password',
+                        prefixIcon: Icon(Icons.lock_outlined, color: AppConfig.primaryColor),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureCurrentPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            color: AppConfig.primaryColor,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              obscureCurrentPassword = !obscureCurrentPassword;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppConfig.primaryColor),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // New Password Field
+                    TextField(
+                      controller: newPasswordController,
+                      obscureText: obscureNewPassword,
+                      decoration: InputDecoration(
+                        labelText: 'New Password',
+                        prefixIcon: Icon(Icons.lock_reset, color: AppConfig.primaryColor),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureNewPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            color: AppConfig.primaryColor,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              obscureNewPassword = !obscureNewPassword;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppConfig.primaryColor),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Confirm Password Field
+                    TextField(
+                      controller: confirmPasswordController,
+                      obscureText: obscureConfirmPassword,
+                      decoration: InputDecoration(
+                        labelText: 'Confirm New Password',
+                        prefixIcon: Icon(Icons.lock_reset, color: AppConfig.primaryColor),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            color: AppConfig.primaryColor,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              obscureConfirmPassword = !obscureConfirmPassword;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppConfig.primaryColor),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    await _changePassword(
+                      context,
+                      currentPasswordController.text,
+                      newPasswordController.text,
+                      confirmPasswordController.text,
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppConfig.primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Change Password'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _changePassword(
+    BuildContext context,
+    String currentPassword,
+    String newPassword,
+    String confirmPassword,
+  ) async {
+    // Validation
+    if (currentPassword.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your current password'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (newPassword.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a new password'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('New password must be at least 6 characters'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (newPassword != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('New passwords do not match'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (currentPassword == newPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('New password must be different from current password'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await _authService.changePassword(currentPassword, newPassword);
+      
+      Navigator.of(context).pop(); // Close dialog
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password changed successfully!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -279,6 +487,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
 
             const SizedBox(height: 24),
+            
+            // Change Password Button
+            OutlinedButton.icon(
+              onPressed: _showChangePasswordDialog,
+              icon: const Icon(Icons.lock_outline),
+              label: const Text('Change Password'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppConfig.primaryColor,
+                side: BorderSide(color: AppConfig.primaryColor),
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 16),
             FilledButton(
               onPressed: _save,
               child: const Text('Save changes'),

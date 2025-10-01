@@ -18,4 +18,21 @@ class AppConfig {
   // User profile settings
   static const String defaultUserName = "Plant Enthusiast";
   static const String defaultUserTitle = "Nature Lover 🌱";
+  
+  // Email verification URL
+  static const String emailVerificationUrl = "https://pediaherb.app/verify";
+  
+  // Appwrite Configuration
+  static const String appwriteDatabaseId = 'pediaherb_db'; // Database ID
+  static const String appwriteStorageBucketId = 'profile_photos'; // Storage bucket ID
+  
+  // Collection IDs
+  static const String usersCollectionId = 'users';
+  static const String scansCollectionId = 'scans';
+}
+
+class Environment {
+  static const String appwriteProjectId = '68d4f15b002baad3b7f6';
+  static const String appwriteProjectName = 'sample';
+  static const String appwritePublicEndpoint = 'https://nyc.cloud.appwrite.io/v1';
 }
