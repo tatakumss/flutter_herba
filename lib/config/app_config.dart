@@ -19,9 +19,6 @@ class AppConfig {
   static const String defaultUserName = "Plant Enthusiast";
   static const String defaultUserTitle = "Nature Lover 🌱";
   
-  // Email verification URL
-  static const String emailVerificationUrl = "https://pediaherb.app/verify";
-  
   // Appwrite Configuration
   static const String appwriteDatabaseId = 'pediaherb_db'; // Database ID
   static const String appwriteStorageBucketId = 'profile_photos'; // Storage bucket ID

@@ -2,32 +2,27 @@ import 'dart:async';
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart';
 import 'appwrite_service.dart';
-import '../config/app_config.dart';
 
 // User Model for Appwrite
 class AppwriteUser {
   final String uid;
   final String email;
   final String? name;
-  final bool emailVerification;
 
   AppwriteUser({
     required this.uid, 
     required this.email, 
     this.name,
-    required this.emailVerification,
   });
 
   factory AppwriteUser.fromUser(User user) => AppwriteUser(
     uid: user.$id,
     email: user.email,
     name: user.name.isNotEmpty ? user.name : null,
-    emailVerification: user.emailVerification,
   );
 
   // For compatibility with existing code
   String? get displayName => name;
-  bool get isEmailVerified => emailVerification;
 }
 
 // Appwrite Authentication Service
@@ -117,42 +112,7 @@ class AuthService {
     }
   }
   
-  // Send email verification
-  Future<void> sendEmailVerification() async {
-    try {
-      await AppwriteService.account.createVerification(
-        url: AppConfig.emailVerificationUrl,
-      );
-    } on AppwriteException catch (e) {
-      throw _handleAppwriteException(e);
-    } catch (e) {
-      throw 'Failed to send verification email. Please try again.';
-    }
-  }
-  
-  // Complete email verification with token
-  Future<void> completeEmailVerification(String userId, String secret) async {
-    try {
-      await AppwriteService.account.updateVerification(
-        userId: userId,
-        secret: secret,
-      );
-      
-      // Refresh user data to get updated verification status
-      final user = await AppwriteService.account.get();
-      _currentUser = AppwriteUser.fromUser(user);
-      _authStateController.add(_currentUser);
-    } on AppwriteException catch (e) {
-      throw _handleAppwriteException(e);
-    } catch (e) {
-      throw 'Failed to verify email. Please try again or request a new verification link.';
-    }
-  }
-  
-  // Check if current user's email is verified
-  bool get isEmailVerified => _currentUser?.isEmailVerified ?? false;
-  
-  // Refresh user data (useful after verification)
+  // Refresh user data
   Future<void> refreshUser() async {
     try {
       final user = await AppwriteService.account.get();
@@ -166,15 +126,31 @@ class AuthService {
   // Send password recovery email
   Future<void> sendPasswordRecovery(String email) async {
     try {
-      // Using localhost for testing password recovery
+      // Send password recovery email - user will get a verification code
+      // They can then use completePasswordRecovery() method with the code
       await AppwriteService.account.createRecovery(
         email: email,
-        url: 'http://localhost:3000/reset-password', // Localhost URL for testing
+        url: 'https://pediaherb.app/reset', // Placeholder URL (required by Appwrite)
       );
     } on AppwriteException catch (e) {
       throw _handleAppwriteException(e);
     } catch (e) {
       throw 'Failed to send password recovery email. Please try again.';
+    }
+  }
+  
+  // Complete password recovery with verification code
+  Future<void> completePasswordRecovery(String userId, String secret, String newPassword) async {
+    try {
+      await AppwriteService.account.updateRecovery(
+        userId: userId,
+        secret: secret,
+        password: newPassword,
+      );
+    } on AppwriteException catch (e) {
+      throw _handleAppwriteException(e);
+    } catch (e) {
+      throw 'Failed to reset password. Please try again.';
     }
   }
   

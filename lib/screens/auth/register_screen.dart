@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../services/auth_service.dart';
-import 'email_verification_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   @override
@@ -50,10 +49,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           );
           
-          // Navigate to email verification screen
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => EmailVerificationScreen()),
+          // Registration successful - navigate back to login
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Registration successful! Please log in.'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       } on String catch (errorMessage) {

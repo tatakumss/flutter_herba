@@ -4,7 +4,6 @@ import '../services/auth_service.dart';
 import 'edit_profile_screen.dart';
 import '../services/profile_local_store.dart';
 import 'about_screen.dart';
-import '../widgets/email_verification_banner.dart';
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -148,9 +147,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
               const SizedBox(height: 32),
-              
-              // Email Verification Banner
-              EmailVerificationBanner(),
               
               // Profile Card
               Container(

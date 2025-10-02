@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'config/app_config.dart';
 import 'widgets/auth_wrapper.dart';
-import 'widgets/verification_url_wrapper.dart';
 import 'screens/settings_screen.dart';
 import 'services/theme_controller.dart';
 import 'services/appwrite_service.dart';
@@ -76,7 +75,7 @@ class MyApp extends StatelessWidget {
                   titleMedium: const TextStyle(color: Color(0xFF81C784)),
                 ),
           ),
-          home: VerificationUrlWrapper(child: AuthWrapper()),
+          home: AuthWrapper(),
           routes: {
             '/settings': (context) => const SettingsScreen(),
           },

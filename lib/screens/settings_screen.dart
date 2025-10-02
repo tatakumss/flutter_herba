@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../config/app_config.dart';
 import '../services/theme_controller.dart';
-import 'test_verification_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -55,9 +54,9 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           
-          // Development section
+          // App info section
           Text(
-            'Development & Testing',
+            'About',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -69,16 +68,9 @@ class SettingsScreen extends StatelessWidget {
             elevation: 0,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: ListTile(
-              leading: const Icon(Icons.verified_user),
-              title: const Text('Email Verification Test'),
-              subtitle: const Text('Test and troubleshoot email verification'),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => TestVerificationScreen()),
-                );
-              },
+              leading: const Icon(Icons.info_outline),
+              title: Text(AppConfig.appName),
+              subtitle: Text(AppConfig.appDescription),
             ),
           ),
           const SizedBox(height: 24),
