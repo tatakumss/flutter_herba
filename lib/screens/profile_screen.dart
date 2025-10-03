@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import '../config/app_config.dart';
 import '../services/auth_service.dart';
@@ -6,6 +8,8 @@ import '../services/profile_local_store.dart';
 import 'about_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -131,6 +135,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
+                            
                             color: Colors.black.withOpacity(0.1),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
@@ -266,7 +271,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 32),
               
               // Logout Button
-              Container(
+              SizedBox(
                 width: double.infinity,
                 child: TextButton(
                   onPressed: () async {

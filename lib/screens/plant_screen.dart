@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import '../config/app_config.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,6 +12,8 @@ import 'package:image/image.dart' as img;
 import '../services/collection_service.dart';
 
 class PlantScreen extends StatefulWidget {
+  const PlantScreen({super.key});
+
   @override
   State<PlantScreen> createState() => _PlantScreenState();
 }
@@ -700,7 +704,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                 padding: const EdgeInsets.all(20),
                 child: Column(children: [
                     // Primary Action - Camera
-                    Container(
+                    SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: _captureAndClassify,
@@ -872,13 +876,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                       _oodReason == 'HUMAN_DETECTED'
                         ? 'Unknown'
                         : (
-                            'Unknown' + (_oodReason != null ? ' (${_oodReason})' : '') +
-                            '. ' +
-                            (_oodConf != null ? 'conf ${_oodConf!.toStringAsFixed(2)}  ' : '') +
-                            (_oodScore != null ? 'ood ${_oodScore!.toStringAsFixed(2)}  ' : '') +
-                            (_skinRatio != null ? 'skin ${_skinRatio!.toStringAsFixed(2)}  ' : '') +
-                            (_edgeDensity != null ? 'edge ${_edgeDensity!.toStringAsFixed(2)}  ' : '') +
-                            (_greenRatio != null ? 'green ${_greenRatio!.toStringAsFixed(2)}' : '')
+                            'Unknown${_oodReason != null ? ' (${_oodReason})' : ''}. ${_oodConf != null ? 'conf ${_oodConf!.toStringAsFixed(2)}  ' : ''}${_oodScore != null ? 'ood ${_oodScore!.toStringAsFixed(2)}  ' : ''}${_skinRatio != null ? 'skin ${_skinRatio!.toStringAsFixed(2)}  ' : ''}${_edgeDensity != null ? 'edge ${_edgeDensity!.toStringAsFixed(2)}  ' : ''}${_greenRatio != null ? 'green ${_greenRatio!.toStringAsFixed(2)}' : ''}'
                           ),
                       style: theme.textTheme.bodyMedium?.copyWith(color: Colors.orange[800], fontWeight: FontWeight.w700),
                     ),
@@ -982,7 +980,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                     // Cap displayed percent at 85%
                     () {
                       final v = (item['score'] is num) ? ((item['score'] as num).toDouble()) : 0.0;
-                      final capped = v.clamp(0.0, 0.85) as double;
+                      final capped = v.clamp(0.0, 0.85);
                       return '${(capped * 100).toStringAsFixed(0)}%';
                     }(),
                     style: percentStyle,

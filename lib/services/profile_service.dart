@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:appwrite/appwrite.dart';
 import 'appwrite_service.dart';
 import '../config/app_config.dart';

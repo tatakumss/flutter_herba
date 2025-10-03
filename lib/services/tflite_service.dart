@@ -33,7 +33,7 @@ class TFLiteService {
         ..threads = 2
         // NNAPI can be unstable on some emulators; disable by default
         ..useNnApiForAndroid = false;
-      _interpreter = await Interpreter.fromBuffer(modelBytes, options: options);
+      _interpreter = Interpreter.fromBuffer(modelBytes, options: options);
     } catch (e) {
       // Re-throw with context so UI can show precise cause
       throw ArgumentError('Failed to load TFLite model "$modelAsset": $e');
@@ -66,7 +66,7 @@ class TFLiteService {
         final options = InterpreterOptions()
           ..threads = 2
           ..useNnApiForAndroid = false;
-        _embedder = await Interpreter.fromBuffer(fxBytes, options: options);
+        _embedder = Interpreter.fromBuffer(fxBytes, options: options);
       } catch (e) {
         // Keep app running even if embedder is unavailable
         _embedder = null;
@@ -77,7 +77,7 @@ class TFLiteService {
   }
 
   Future<List<Map<String, dynamic>>> classify(Uint8List bytes, {int topK = 3}) async {
-    final probs = await this.predictProbs(bytes);
+    final probs = await predictProbs(bytes);
     final pairs = <Map<String, dynamic>>[];
     for (int i = 0; i < probs.length; i++) {
       final name = (i < _labels.length && _labels[i].isNotEmpty) ? _labels[i] : 'Class $i';
@@ -156,7 +156,7 @@ class TFLiteService {
     fx.run(inputTensor, output);
 
     // Return as doubles
-    return List<double>.generate(outLen, (i) => (output[0][i] as double));
+    return List<double>.generate(outLen, (i) => output[0][i]);
   }
 
   // Softmax utility for normalization
