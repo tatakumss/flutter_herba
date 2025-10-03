@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../config/app_config.dart';
+import 'plant_screen.dart';
+import '../services/plant_library_service.dart';
+import 'plant_detail_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   @override
@@ -62,6 +65,9 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
 
+              // Spacer between header and hero
+              const SizedBox(height: 8),
+
               // Hero Card
               Container(
                 width: double.infinity,
@@ -114,7 +120,11 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => PlantScreen()),
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: const Color(0xFF2E7D32),
@@ -134,9 +144,40 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
 
-              // Quick Actions
+              // How to scan (compact tips)
+              Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Theme(
+                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    initiallyExpanded: false,
+                    leading: const Icon(Icons.help_outline, color: Color(0xFF2E7D32)),
+                    title: const Text('How to scan', style: TextStyle(fontWeight: FontWeight.w700)),
+                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    children: [
+                      _buildTip(context, 'Fill the frame with the leaf/plant. Avoid background clutter.'),
+                      _buildTip(context, 'Good light. Avoid harsh glare and heavy shadows.'),
+                      _buildTip(context, 'Hold steady and ensure the subject is in focus.'),
+                      _buildTip(context, 'Keep hands and faces out of the frame to avoid Unknown.'),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Most Searched Herbal Plants
               Text(
-                "Quick Actions",
+                "Most Searched Herbal Plants",
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -145,55 +186,42 @@ class HomeScreen extends StatelessWidget {
                       : AppConfig.primaryDark,
                 ),
               ),
-              const SizedBox(height: 16),
-              
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildQuickActionCard(
-                      icon: Icons.local_library,
-                      title: "Browse Library",
-                      subtitle: "Explore plants",
-                      color: const Color(0xFF8BC34A),
-                      context: context,
+              const SizedBox(height: 12),
+              FutureBuilder<List<PlantItem>>(
+                future: PlantLibraryService().load(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  final all = snapshot.data ?? [];
+                  final herbs = all.where((p) => p.category.toLowerCase() == 'herb').toList()
+                    ..sort((a, b) => a.name.compareTo(b.name));
+                  final top = herbs.take(8).toList();
+                  if (top.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'Library is empty. Add items to assets/plants.json.',
+                        style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7)),
+                      ),
+                    );
+                  }
+                  return SizedBox(
+                    height: 140,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: top.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 12),
+                      itemBuilder: (context, i) {
+                        final p = top[i];
+                        return _buildPlantChipCard(context, p);
+                      },
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildQuickActionCard(
-                      icon: Icons.history,
-                      title: "Recent Scans",
-                      subtitle: "View history",
-                      color: const Color(0xFF66BB6A),
-                      context: context,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildQuickActionCard(
-                      icon: Icons.favorite_outline,
-                      title: "Favorites",
-                      subtitle: "Saved plants",
-                      color: const Color(0xFF4CAF50),
-                      context: context,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildQuickActionCard(
-                      icon: Icons.settings,
-                      title: "Settings",
-                      subtitle: "Preferences",
-                      color: const Color(0xFF2E7D32),
-                      context: context,
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
             ],
           ),
@@ -202,54 +230,81 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActionCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required BuildContext context,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
-          ),
-        ],
+  Widget _buildPlantChipCard(BuildContext context, PlantItem p) {
+    return InkWell(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => PlantDetailScreen(plant: p)),
       ),
-      child: Column(
+      child: Container(
+        width: 180,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: p.color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.local_florist, color: p.color),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    p.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    p.category,
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTip(BuildContext context, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 24),
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(Icons.check_circle, size: 16, color: Color(0xFF66BB6A)),
           ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: (Theme.of(context).brightness == Brightness.dark)
-                  ? const Color(0xFF81C784)
-                  : AppConfig.primaryDark,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.75),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.85),
+                height: 1.35,
+              ),
             ),
           ),
         ],

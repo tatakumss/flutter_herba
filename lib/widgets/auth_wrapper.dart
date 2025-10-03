@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import '../services/auth_service.dart';
 import '../screens/main_screen.dart';
 import '../screens/auth/login_screen.dart';
@@ -30,6 +31,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
             ),
           );
         }
+        
+        // Remove splash screen when auth state is determined
+        FlutterNativeSplash.remove();
         
         if (snapshot.hasData) {
           return MainScreen();

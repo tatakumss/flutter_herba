@@ -57,6 +57,10 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  
+  # App icon and splash screen generators
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -71,6 +75,7 @@ flutter:
   assets:
     - assets/models/
     - assets/plants.json
+    - assets/images/
     # New model bundle (copy these files into assets/models/):
     - assets/models/herbal_classifier.tflite
     - assets/models/feature_extractor.tflite
@@ -107,3 +112,35 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# App Icon Configuration
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/logoherba.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  web:
+    generate: true
+    image_path: "assets/images/logoherba.png"
+    background_color: "#2E7D32"
+    theme_color: "#2E7D32"
+  windows:
+    generate: true
+    image_path: "assets/images/logoherba.png"
+    icon_size: 48 # min:48, max:256, default: 48
+  macos:
+    generate: true
+    image_path: "assets/images/logoherba.png"
+
+# Splash Screen Configuration
+flutter_native_splash:
+  color: "#2E7D32"
+  image: "assets/images/logoherba.png"
+  color_dark: "#1B5E20"
+  image_dark: "assets/images/logoherba.png"
+  android_12:
+    image: "assets/images/logoherba.png"
+    color: "#2E7D32"
+    image_dark: "assets/images/logoherba.png"
+    color_dark: "#1B5E20"
+  web: false

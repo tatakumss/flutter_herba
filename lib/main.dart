@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'config/app_config.dart';
 import 'widgets/auth_wrapper.dart';
 import 'screens/settings_screen.dart';
@@ -6,7 +7,10 @@ import 'services/theme_controller.dart';
 import 'services/appwrite_service.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  
+  // Preserve the splash screen until app is ready
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
   
   // Initialize Appwrite
   AppwriteService.initialize();

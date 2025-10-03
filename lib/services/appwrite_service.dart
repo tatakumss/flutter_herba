@@ -16,7 +16,8 @@ class AppwriteService {
     _client = Client()
         .setEndpoint(Environment.appwritePublicEndpoint)
         .setProject(Environment.appwriteProjectId)
-        .setSelfSigned(status: true); // Only for development with self-signed certificates
+        .setSelfSigned(status: false) // Explicitly set to false for production
+        .addHeader('X-Appwrite-Response-Format', '1.4.0'); // Add API version header
 
     _account = Account(_client);
     _databases = Databases(_client);

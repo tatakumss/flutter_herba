@@ -123,19 +123,87 @@ class AuthService {
     }
   }
   
+  // Test network connectivity to Appwrite
+  Future<bool> testConnectivity() async {
+    try {
+      print('Testing connectivity to Appwrite...'); // Debug log
+      
+      // Try to make a simple request to test connectivity
+      await AppwriteService.account.get();
+      return true; // Connected (user is logged in)
+    } catch (e) {
+      if (e is AppwriteException && e.code == 401) {
+        return true; // Connected but not logged in (this is expected)
+      }
+      
+      print('Connectivity test failed: $e'); // Debug log
+      return false; // Network issue
+    }
+  }
+
   // Send password recovery email
   Future<void> sendPasswordRecovery(String email) async {
     try {
-      // Send password recovery email - user will get a verification code
-      // They can then use completePasswordRecovery() method with the code
-      await AppwriteService.account.createRecovery(
-        email: email,
-        url: 'https://pediaherb.app/reset', // Placeholder URL (required by Appwrite)
-      );
+      // Validate email format before sending
+      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+        throw 'Please enter a valid email address.';
+      }
+
+      print('Sending password recovery for: $email'); // Debug log
+      print('Using endpoint: ${AppwriteService.client.endPoint}'); // Debug log
+      print('Using project: ${AppwriteService.client.config['project']}'); // Debug log
+      
+      // Test connectivity first
+      bool isConnected = await testConnectivity();
+      if (!isConnected) {
+        throw 'Unable to connect to server. Please check your internet connection and try again.';
+      }
+      
+      // Add retry logic for network issues
+      int retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          await AppwriteService.account.createRecovery(
+            email: email,
+            url: 'https://tatakumss.github.io/appwrite-reset-and-verify/password-reset.html',
+          );
+          
+          print('Password recovery email sent successfully'); // Debug log
+          return; // Success, exit retry loop
+          
+        } catch (e) {
+          retryCount++;
+          print('Attempt $retryCount failed: $e'); // Debug log
+          
+          if (retryCount >= maxRetries) {
+            rethrow; // Re-throw the error after max retries
+          }
+          
+          // Wait before retrying (exponential backoff)
+          await Future.delayed(Duration(seconds: retryCount * 2));
+        }
+      }
+      
     } on AppwriteException catch (e) {
+      print('Appwrite error: ${e.code} - ${e.message} - ${e.type}'); // Debug log
       throw _handleAppwriteException(e);
     } catch (e) {
-      throw 'Failed to send password recovery email. Please try again.';
+      print('General error: $e'); // Debug log
+      
+      // Handle specific network errors
+      String errorMessage = e.toString().toLowerCase();
+      if (errorMessage.contains('failed to fetch') || 
+          errorMessage.contains('network') ||
+          errorMessage.contains('connection') ||
+          errorMessage.contains('timeout')) {
+        throw 'Network error. Please check your internet connection and try again.';
+      } else if (errorMessage.contains('cors') || errorMessage.contains('cross-origin')) {
+        throw 'Connection blocked. Please try again or contact support.';
+      } else {
+        throw 'Failed to send password recovery email. Please check your internet connection and try again.';
+      }
     }
   }
   
@@ -182,7 +250,14 @@ class AuthService {
         if (e.message?.contains('email') == true) {
           return 'Please enter a valid email address.';
         }
-        return 'Invalid request. Please check your input.';
+        if (e.message?.contains('URL') == true || e.message?.contains('url') == true) {
+          return 'Configuration error. Please contact support.';
+        }
+        if (e.message?.contains('User') == true && e.message?.contains('not found') == true) {
+          return 'No account found with this email address.';
+        }
+        // Return the actual error message for debugging
+        return 'Error: ${e.message ?? "Invalid request. Please check your input."}';
       case 429:
         return 'Too many requests. Please wait a few minutes before trying again.';
       case 500:

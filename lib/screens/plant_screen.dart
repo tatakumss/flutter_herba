@@ -14,7 +14,7 @@ class PlantScreen extends StatefulWidget {
   State<PlantScreen> createState() => _PlantScreenState();
 }
 
-class _PlantScreenState extends State<PlantScreen> {
+class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
   Uint8List? _previewBytes;
   List<Map<String, dynamic>> _results = [];
   bool _loading = false;
@@ -27,6 +27,27 @@ class _PlantScreenState extends State<PlantScreen> {
   bool _flashOn = false;
   final _history = ScanHistoryService();
   final _collections = CollectionService();
+
+  // Runtime model selection (V1/V2)
+  final List<Map<String, String>> _modelOptions = const [
+    {
+      'key': 'v1',
+      'name': 'Model V1',
+      'model': 'assets/models/herbal_classifier.tflite',
+      'labels': 'assets/models/class_labels.txt',
+      'extractor': 'assets/models/feature_extractor.tflite',
+      'ood': 'assets/models/complete_ood_stats.json',
+    },
+    {
+      'key': 'kaggle',
+      'name': 'Model Kaggle',
+      'model': 'assets/models/kaggle_herbal_classifier.tflite',
+      'labels': 'assets/models/kaggle_class_labels.txt',
+      'extractor': 'assets/models/kaggle_feature_extractor.tflite',
+      'ood': 'assets/models/kaggle_complete_ood_stats.json',
+    },
+  ];
+  String _selectedModelKey = 'v1';
 
   // Last scan context for saving to collection
   String _lastLabel = 'Unknown';
@@ -44,21 +65,70 @@ class _PlantScreenState extends State<PlantScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initModel();
     _initCamera();
-    // Load OOD profile; non-blocking
-    _ood.load('assets/models/complete_ood_stats.json');
+    // Load OOD profile for selected model; non-blocking
+    _loadOodProfileForSelectedModel();
     // Temporarily disable auto tutorial to avoid blocking UI interactions
     // You can open it anytime via the help icon in the header.
     // _maybeShowTutorial();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _tflite.dispose();
+    _cameraController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final ctrl = _cameraController;
+    if (ctrl == null) return;
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      // Release camera when app goes to background to avoid freezes on return
+      ctrl.dispose();
+      _cameraController = null;
+    } else if (state == AppLifecycleState.resumed) {
+      // Reinitialize camera when app resumes
+      _initCamera();
+    }
+  }
+
+  Future<void> _switchModel(String key) async {
+    if (_selectedModelKey == key) return;
+    setState(() { _selectedModelKey = key; _loading = true; _results = []; _error = null; });
+    try {
+      // Re-init TFLite with new assets
+      _tflite.dispose();
+      await _initModel();
+      await _loadOodProfileForSelectedModel();
+      // Reset OOD state
+      _oodReason = null; _oodConf = null; _oodScore = null; _skinRatio = null; _edgeDensity = null; _greenRatio = null;
+      // Re-run classification on the last preview if available
+      if (_previewBytes != null) {
+        await _classify(_previewBytes!);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _error = 'Model switch failed: $e'; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Model switch failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() { _loading = false; });
+    }
+  }
+
   Future<void> _initModel() async {
     try {
+      final cfg = _modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first);
       await _tflite.init(
-        modelAsset: 'assets/models/herbal_classifier.tflite',
-        labelsAsset: 'assets/models/class_labels.txt',
-        extractorAsset: 'assets/models/feature_extractor.tflite',
+        modelAsset: cfg['model']!,
+        labelsAsset: cfg['labels']!,
+        extractorAsset: cfg['extractor']!,
       );
     } catch (e) {
       if (!mounted) return;
@@ -70,6 +140,18 @@ class _PlantScreenState extends State<PlantScreen> {
         SnackBar(content: Text('TFLite init error: $e')),
       );
       setState(() { _error = 'Model or labels not found. Ensure assets/models/herbal_classifier.tflite and assets/models/class_labels.txt exist and are listed in pubspec.yaml.'; });
+    }
+  }
+
+  Future<void> _loadOodProfileForSelectedModel() async {
+    try {
+      final cfg = _modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first);
+      final oodAsset = cfg['ood'];
+      if (oodAsset != null && oodAsset.isNotEmpty) {
+        await _ood.load(oodAsset);
+      }
+    } catch (_) {
+      // ignore OOD load errors; classification still works
     }
   }
 
@@ -342,12 +424,7 @@ class _PlantScreenState extends State<PlantScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _tflite.dispose();
-    _cameraController?.dispose();
-    super.dispose();
-  }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -361,38 +438,110 @@ class _PlantScreenState extends State<PlantScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    "Plant Scanner",
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xFF81C784)
-                          : AppConfig.primaryDark,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        if (Navigator.canPop(context))
+                          InkWell(
+                            onTap: () => Navigator.of(context).maybePop(),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Icon(
+                                Icons.arrow_back,
+                                size: 24,
+                                color: Theme.of(context).textTheme.bodyLarge?.color,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            "Plant Scanner",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFF81C784)
+                                  : AppConfig.primaryDark,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  InkWell(
-                    onTap: _showTutorial,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                  Row(
+                    children: [
+                      // Model selector
+                      PopupMenuButton<String>(
+                        tooltip: 'Select model',
+                        onSelected: (k) => _switchModel(k),
+                        itemBuilder: (ctx) => _modelOptions.map((m) {
+                          final key = m['key']!;
+                          final name = m['name']!;
+                          return PopupMenuItem<String>(
+                            value: key,
+                            child: Row(
+                              children: [
+                                if (_selectedModelKey == key)
+                                  const Icon(Icons.check, size: 16)
+                                else
+                                  const SizedBox(width: 16),
+                                const SizedBox(width: 8),
+                                Text(name),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                        ],
+                          child: Row(
+                            children: [
+                              const Icon(Icons.swap_horiz, size: 18),
+                              const SizedBox(width: 6),
+                              Text(_modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first)['name']!),
+                            ],
+                          ),
+                        ),
                       ),
-                      child: Icon(
-                        Icons.help_outline,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 24,
+                      const SizedBox(width: 10),
+                      InkWell(
+                        onTap: _showTutorial,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.help_outline,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 24,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
@@ -762,11 +911,18 @@ class _PlantScreenState extends State<PlantScreen> {
               TextButton.icon(
                 onPressed: () async {
                   try {
+                    if (_previewBytes == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Nothing to save: capture or pick an image first.')),
+                      );
+                      return;
+                    }
                     await _collections.saveScan(
                       name: _lastLabel,
                       confidence: _lastConfidence,
                       isOod: _lastIsOod,
                       candidates: _lastCandidates,
+                      imageBytes: _previewBytes!,
                     );
                     if (!mounted) return;
                     setState(() { _savedToCollection = true; });
