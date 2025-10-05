@@ -27,6 +27,8 @@ class AppConfig {
   // Collection IDs
   static const String usersCollectionId = 'users';
   static const String scansCollectionId = 'scans';
+  static const String feedbackCollectionId = 'feedback';
+  static const String reportsCollectionId = 'reports';
 }
 
 class Environment {

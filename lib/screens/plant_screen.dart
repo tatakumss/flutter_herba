@@ -10,6 +10,8 @@ import '../services/scan_history_service.dart';
 import '../services/ood_service.dart';
 import 'package:image/image.dart' as img;
 import '../services/collection_service.dart';
+import '../services/feedback_service.dart';
+import '../services/scan_service.dart';
 
 class PlantScreen extends StatefulWidget {
   const PlantScreen({super.key});
@@ -31,6 +33,11 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
   bool _flashOn = false;
   final _history = ScanHistoryService();
   final _collections = CollectionService();
+  final _feedback = FeedbackService();
+  final _scanService = ScanService();
+  
+  // Current scan ID for linking reports
+  String? _currentScanId;
 
   // Runtime model selection (V1/V2)
   final List<Map<String, String>> _modelOptions = const [
@@ -395,6 +402,19 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
         _lastConfidence = hardOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : score);
         _lastIsOod = hardOod;
         _lastCandidates = candidates;
+        
+        // Save scan result to database and get scan ID for potential reports
+        _currentScanId = await _scanService.saveScanResult(
+          plantName: label,
+          confidence: hardOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : score),
+          isOod: hardOod,
+          candidates: candidates,
+          imageBytes: _previewBytes,
+          oodReason: rejReason,
+          oodScore: hardOod ? oodScore : null,
+        );
+        
+        // Also save to local history for backward compatibility
         await _history.add(
           ScanEntry(
             name: label,
@@ -817,6 +837,179 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
     );
   }
 
+  void _showFeedbackModal(String type) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        final controller = TextEditingController();
+        bool isSubmitting = false;
+        
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        type == 'error' ? Icons.report_problem_outlined : Icons.lightbulb_outline,
+                        color: type == 'error' ? Colors.orange[700] : Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        type == 'error' ? 'Report Error' : 'Suggest Improvement',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    type == 'error' 
+                        ? 'Help us improve by describing what looks incorrect:'
+                        : 'Share your ideas to make the app better:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    maxLines: 4,
+                    maxLength: 500,
+                    decoration: InputDecoration(
+                      hintText: type == 'error' 
+                          ? 'e.g., "The plant was identified as X but it\'s actually Y"'
+                          : 'e.g., "It would be great if the app could..."',
+                      border: const OutlineInputBorder(),
+                      counterText: '',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Spacer(),
+                      TextButton(
+                        onPressed: isSubmitting ? null : () => Navigator.of(ctx).pop(),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: isSubmitting ? null : () async {
+                          final message = controller.text.trim();
+                          if (message.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter your feedback')),
+                            );
+                            return;
+                          }
+
+                          setState(() { isSubmitting = true; });
+
+                          try {
+                            bool success;
+                            if (type == 'error') {
+                              // For error reports, we need a scan ID
+                              if (_currentScanId != null) {
+                                success = await _feedback.submitErrorReportWithScan(
+                                  message: message,
+                                  scanId: _currentScanId!,
+                                );
+                              } else {
+                                // Fallback: create scan first, then report
+                                final scanId = await _scanService.saveScanResult(
+                                  plantName: _lastLabel,
+                                  confidence: _lastConfidence,
+                                  isOod: _lastIsOod,
+                                  candidates: _lastCandidates,
+                                  oodReason: _oodReason,
+                                  oodScore: _oodScore,
+                                );
+                                if (scanId != null) {
+                                  success = await _feedback.submitErrorReportWithScan(
+                                    message: message,
+                                    scanId: scanId,
+                                  );
+                                } else {
+                                  success = false;
+                                }
+                              }
+                            } else {
+                              success = await _feedback.submitImprovementSuggestion(
+                                message: message,
+                              );
+                            }
+
+                            Navigator.of(ctx).pop();
+                            
+                            if (success) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    type == 'error' 
+                                        ? 'Error report submitted. Thanks for helping us improve!'
+                                        : 'Suggestion submitted. Thanks for your feedback!'
+                                  ),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            } else {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Failed to submit feedback. Please try again.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            Navigator.of(ctx).pop();
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                        child: isSubmitting 
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('Submit'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildCornerGuide(bool isTop, bool isLeft) {
     return Container(
       width: 24,
@@ -838,7 +1031,6 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
     final labelStyle = theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600) ?? const TextStyle(fontSize: 14, fontWeight: FontWeight.w600);
     final percentStyle = theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600) ?? const TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
     final isUnknown = results.isNotEmpty && (results.first['label']?.toString().toLowerCase() == 'unknown');
-    final lowConfidence = _oodReason == 'LOW_CONFIDENCE' && !isUnknown;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -989,54 +1181,27 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
               ),
             ),
           const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-                  builder: (ctx) {
-                    final controller = TextEditingController();
-                    return Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Report Error', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: controller,
-                            maxLines: 3,
-                            decoration: const InputDecoration(
-                              hintText: 'Describe what looks incorrect...',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              const Spacer(),
-                              ElevatedButton(
-                                onPressed: () {
-                                  Navigator.of(ctx).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Thanks for the feedback!')),
-                                  );
-                                },
-                                child: const Text('Submit'),
-                              ),
-                            ],
-                          )
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-              child: const Text('Report error'),
-            ),
+          // Feedback Actions Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              TextButton.icon(
+                onPressed: () => _showFeedbackModal('error'),
+                icon: const Icon(Icons.report_problem_outlined, size: 16),
+                label: const Text('Report Error'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.orange[700],
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () => _showFeedbackModal('suggestion'),
+                icon: const Icon(Icons.lightbulb_outline, size: 16),
+                label: const Text('Suggest Improvement'),
+                style: TextButton.styleFrom(
+                  foregroundColor: theme.colorScheme.primary,
+                ),
+              ),
+            ],
           ),
         ],
       ),

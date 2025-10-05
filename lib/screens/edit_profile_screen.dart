@@ -2,25 +2,23 @@
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'dart:typed_data';
 import '../config/app_config.dart';
 import '../services/auth_service.dart';
+import '../services/appwrite_service.dart';
+import 'package:appwrite/appwrite.dart';
+import 'package:appwrite/models.dart' as models;
 
 class EditProfileScreen extends StatefulWidget {
   final String userId;
   final String? initialName;
-  final DateTime? initialBirthday;
   final String? initialPhotoUrl;
-  final String? initialBio;
 
   const EditProfileScreen({
     super.key,
     required this.userId,
     this.initialName,
-    this.initialBirthday,
     this.initialPhotoUrl,
-    this.initialBio,
   });
 
   @override
@@ -29,9 +27,7 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameController;
-  late final TextEditingController _bioController;
   final AuthService _authService = AuthService();
-  DateTime? _birthday;
   String? _photoUrl;
   bool _uploading = false;
   bool _picking = false;
@@ -40,50 +36,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.initialName ?? '');
-    _bioController = TextEditingController(text: widget.initialBio ?? '');
-    _birthday = widget.initialBirthday;
     _photoUrl = widget.initialPhotoUrl;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _bioController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickBirthday() async {
-    final now = DateTime.now();
-    final firstDate = DateTime(1900, 1, 1);
-    final lastDate = DateTime(now.year, now.month, now.day);
 
-    final selected = await showDatePicker(
-      context: context,
-      initialDate: _birthday ?? DateTime(now.year - 20, now.month, now.day),
-      firstDate: firstDate,
-      lastDate: lastDate,
-      helpText: 'Select birthday',
-    );
-    if (selected != null) {
-      setState(() => _birthday = selected);
-    }
-  }
-
-  String _formatDate(DateTime d) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${d.year}-${two(d.month)}-${two(d.day)}';
-  }
-
-  int _ageFrom(DateTime d) {
-    final today = DateTime.now();
-    int age = today.year - d.year;
-    if (today.month < d.month || (today.month == d.month && today.day < d.day)) {
-      age--;
-    }
-    return age;
-  }
-
-  void _save() {
+  Future<void> _save() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -91,12 +54,91 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
       return;
     }
-    Navigator.pop(context, {
-      'name': name,
-      'birthday': _birthday?.toIso8601String(),
-      'photoUrl': _photoUrl,
-      'bio': _bioController.text.trim(),
-    });
+
+    try {
+      // Save user profile to Appwrite database
+      await AppwriteService.databases.createDocument(
+        databaseId: AppConfig.appwriteDatabaseId,
+        collectionId: 'userprofile',
+        documentId: widget.userId, // Use userId as document ID
+        data: {
+          'name': name,
+          'photoUrl': _photoUrl ?? '',
+          'userId': widget.userId,
+        },
+        permissions: [
+          Permission.read(Role.user(widget.userId)),
+          Permission.write(Role.user(widget.userId)),
+        ],
+      );
+
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile updated successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      Navigator.pop(context, {
+        'name': name,
+        'photoUrl': _photoUrl,
+      });
+    } on AppwriteException catch (e) {
+      if (e.code == 409) {
+        // Document already exists, update it instead
+        try {
+          await AppwriteService.databases.updateDocument(
+            databaseId: AppConfig.appwriteDatabaseId,
+            collectionId: 'userprofile',
+            documentId: widget.userId,
+            data: {
+              'name': name,
+              'photoUrl': _photoUrl ?? '',
+            },
+          );
+
+          if (!mounted) return;
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile updated successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          
+          Navigator.pop(context, {
+            'name': name,
+            'photoUrl': _photoUrl,
+          });
+        } catch (updateError) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to update profile: $updateError'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save profile: ${e.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save profile: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _pickAndUploadAvatar() async {
@@ -113,28 +155,38 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
       
       final picker = ImagePicker();
-      final picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, imageQuality: 85);
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery, 
+        maxWidth: 1024, 
+        imageQuality: 85
+      );
       if (picked == null) return;
       
       setState(() => _uploading = true);
 
-      // Save locally only (Firebase Storage removed)
-      final localPath = await _saveAvatarLocally(picked);
+      // Upload to Appwrite Storage
+      final photoUrl = await _uploadToAppwrite(picked);
       if (!mounted) return;
       
       setState(() {
-        _photoUrl = localPath; // file://...
+        _photoUrl = photoUrl;
         _uploading = false;
       });
       
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile photo saved locally')),
+        const SnackBar(
+          content: Text('Profile photo uploaded successfully!'),
+          backgroundColor: Colors.green,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _uploading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update photo: $e')),
+        SnackBar(
+          content: Text('Failed to upload photo: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) {
@@ -143,15 +195,38 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  Future<String> _saveAvatarLocally(XFile picked) async {
-    final dir = await getApplicationDocumentsDirectory();
-    final avatarsDir = Directory('${dir.path}/avatars');
-    if (!await avatarsDir.exists()) {
-      await avatarsDir.create(recursive: true);
+  Future<String> _uploadToAppwrite(XFile picked) async {
+    try {
+      // Read image bytes
+      final Uint8List imageBytes = await picked.readAsBytes();
+      
+      // Create unique file ID
+      final fileId = ID.unique();
+      final fileName = 'profile_${widget.userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      
+      // Upload to Appwrite Storage
+      final models.File file = await AppwriteService.storage.createFile(
+        bucketId: AppConfig.appwriteStorageBucketId,
+        fileId: fileId,
+        file: InputFile.fromBytes(
+          bytes: imageBytes,
+          filename: fileName,
+          contentType: 'image/jpeg',
+        ),
+        permissions: [
+          Permission.read(Role.user(widget.userId)),
+          Permission.write(Role.user(widget.userId)),
+        ],
+      );
+      
+      // Return the file view URL
+      return '${Environment.appwritePublicEndpoint}/storage/buckets/${AppConfig.appwriteStorageBucketId}/files/${file.$id}/view?project=${Environment.appwriteProjectId}';
+    } on AppwriteException catch (e) {
+      if (e.code == 404) {
+        throw Exception('Storage bucket "${AppConfig.appwriteStorageBucketId}" not found. Please create it in Appwrite console.');
+      }
+      throw Exception('Upload failed: ${e.message}');
     }
-    final file = File('${avatarsDir.path}/profile.jpg');
-    await file.writeAsBytes(await picked.readAsBytes(), flush: true);
-    return 'file://${file.path}';
   }
 
   Future<void> _showChangePasswordDialog() async {
@@ -407,8 +482,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   CircleAvatar(
                     radius: 48,
                     backgroundColor: Colors.grey.shade200,
-                    backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
-                    child: _photoUrl == null
+                    backgroundImage: _photoUrl != null && _photoUrl!.isNotEmpty 
+                        ? NetworkImage(_photoUrl!) 
+                        : null,
+                    child: _photoUrl == null || _photoUrl!.isEmpty
                         ? const Icon(Icons.person, size: 48, color: Colors.grey)
                         : null,
                   ),
@@ -420,7 +497,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.green,
+                          color: AppConfig.primaryColor,
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
@@ -432,7 +509,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                         padding: const EdgeInsets.all(6),
                         child: (_uploading || _picking)
-                            ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            ? const SizedBox(
+                                height: 18, 
+                                width: 18, 
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2, 
+                                  color: Colors.white
+                                )
+                              )
                             : const Icon(Icons.camera_alt, color: Colors.white, size: 18),
                       ),
                     ),
@@ -443,47 +527,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             const SizedBox(height: 24),
 
             // Name
-            Text('Name', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            Text(
+              'Name', 
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold
+              )
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _nameController,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Enter your name',
-                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Birthday
-            Text('Birthday', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            InkWell(
-              onTap: _pickBirthday,
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
+                prefixIcon: Icon(Icons.person_outline, color: AppConfig.primaryColor),
+                border: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12))
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    if (_birthday != null)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(_formatDate(_birthday!)),
-                          const SizedBox(height: 2),
-                          Text('Age ${_ageFrom(_birthday!)}', style: TextStyle(color: Colors.grey.shade600)),
-                        ],
-                      )
-                    else
-                      Text('Tap to select your birthday', style: TextStyle(color: Colors.grey.shade600)),
-                    const Icon(Icons.cake_outlined)
-                  ],
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: const BorderRadius.all(Radius.circular(12)),
+                  borderSide: BorderSide(color: AppConfig.primaryColor),
                 ),
               ),
             ),
@@ -506,9 +568,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             
             const SizedBox(height: 16),
-            FilledButton(
-              onPressed: _save,
-              child: const Text('Save changes'),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _save,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppConfig.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Save Changes',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
             ),
           ],
         ),

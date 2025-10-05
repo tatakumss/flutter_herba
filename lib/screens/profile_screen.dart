@@ -19,15 +19,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final ProfileLocalStore _localStore = ProfileLocalStore();
 
   String? _name;
-  DateTime? _birthday;
   String? _photoUrl;
-  String? _bio;
 
   @override
   void initState() {
     super.initState();
     _name = _authService.currentUser?.displayName ?? _authService.currentUser?.email;
-    _birthday = null;
     _photoUrl = null;
     _initAndLoad();
   }
@@ -42,14 +39,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (local['name'] is String && (local['name'] as String).isNotEmpty) {
             _name = local['name'] as String;
           }
-          if (local['birthday'] is DateTime) {
-            _birthday = local['birthday'] as DateTime;
-          }
           if (local['photoUrl'] is String && (local['photoUrl'] as String).isNotEmpty) {
             _photoUrl = local['photoUrl'] as String;
-          }
-          if (local['bio'] is String && (local['bio'] as String).isNotEmpty) {
-            _bio = local['bio'] as String;
           }
         });
       }
@@ -64,42 +55,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (_) => EditProfileScreen(
           userId: user?.uid ?? '',
           initialName: _name,
-          initialBirthday: _birthday,
           initialPhotoUrl: _photoUrl,
-          initialBio: _bio,
         ),
       ),
     );
 
     if (result is Map) {
       final name = result['name'];
-      final bdayIso = result['birthday'];
       final photoUrl = result['photoUrl'];
-      final bio = result['bio'];
-      DateTime? newBirthday;
-      if (bdayIso is String && bdayIso.isNotEmpty) {
-        newBirthday = DateTime.tryParse(bdayIso);
-      }
       if (!mounted) return;
       setState(() {
         if (name is String && name.isNotEmpty) {
           _name = name;
         }
-        _birthday = newBirthday;
         if (photoUrl is String && photoUrl.isNotEmpty) {
           _photoUrl = photoUrl;
-        }
-        if (bio is String) {
-          _bio = bio.isNotEmpty ? bio : null;
         }
       });
       
       // Persist locally
       await _localStore.save(
         name: _name,
-        birthday: _birthday,
         photoUrl: _photoUrl,
-        bio: _bio,
       );
     }
   }
@@ -226,17 +203,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    
-                    // Bio
-                    Text(
-                      _bio?.isNotEmpty == true ? _bio! : 'Bio (optional)',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.7),
-                        fontStyle: _bio?.isNotEmpty == true ? FontStyle.normal : FontStyle.italic,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
                   ],
                 ),
               ),
