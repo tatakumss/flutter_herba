@@ -6,6 +6,8 @@ import '../services/plant_library_service.dart';
 import 'plant_detail_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
+  const LibraryScreen({super.key});
+
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
@@ -71,7 +73,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
+                          color: Colors.black.withValues(alpha: 0.08),
                           blurRadius: 15,
                           offset: const Offset(0, 4),
                         ),
@@ -79,7 +81,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.search, color: Theme.of(context).iconTheme.color?.withOpacity(0.6), size: 20),
+                        Icon(Icons.search, color: Theme.of(context).iconTheme.color?.withValues(alpha: 0.6), size: 20),
                         const SizedBox(width: 12),
                         Expanded(
                           child: TextField(
@@ -91,7 +93,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             ),
                           ),
                         ),
-                        Icon(Icons.tune, color: Theme.of(context).iconTheme.color?.withOpacity(0.6), size: 20),
+                        Icon(Icons.tune, color: Theme.of(context).iconTheme.color?.withValues(alpha: 0.6), size: 20),
                       ],
                     ),
                   ),
@@ -149,7 +151,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -184,7 +186,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 15,
               offset: const Offset(0, 4),
             ),
@@ -200,8 +202,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      plant.color.withOpacity(0.3),
-                      plant.color.withOpacity(0.1),
+                      plant.color.withValues(alpha: 0.3),
+                      plant.color.withValues(alpha: 0.1),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -226,7 +228,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
@@ -266,7 +268,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           plant.category,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.75),
+                            color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.75),
                           ),
                         ),
                       ],
@@ -277,7 +279,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: plant.color.withOpacity(0.1),
+                            color: plant.color.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(

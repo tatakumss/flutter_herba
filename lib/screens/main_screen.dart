@@ -9,19 +9,21 @@ import 'history_screen.dart';
 import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
   @override
-  _MainScreenState createState() => _MainScreenState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    HomeScreen(),
-    LibraryScreen(),
-    PlantScreen(),
-    HistoryScreen(),
-    ProfileScreen(),
+    const HomeScreen(),
+    const LibraryScreen(),
+    const PlantScreen(),
+    const HistoryScreen(),
+    const ProfileScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -40,7 +42,7 @@ class _MainScreenState extends State<MainScreen> {
           color: Theme.of(context).cardColor,
           boxShadow: [
             BoxShadow(
-              color: isDark ? Colors.black.withOpacity(0.5) : Colors.black.withOpacity(0.1),
+              color: isDark ? Colors.black.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, -5),
             ),
@@ -51,8 +53,8 @@ class _MainScreenState extends State<MainScreen> {
           onDestinationSelected: _onItemTapped,
           backgroundColor: Colors.transparent,
           indicatorColor: isDark
-              ? const Color(0xFF81C784).withOpacity(0.2)
-              : AppConfig.primaryColor.withOpacity(0.1),
+              ? const Color(0xFF81C784).withValues(alpha: 0.2)
+              : AppConfig.primaryColor.withValues(alpha: 0.1),
           indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           height: 70,
           destinations: [

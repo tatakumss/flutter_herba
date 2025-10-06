@@ -1,12 +1,14 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, use_build_context_synchronously
 
 import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
   @override
-  _RegisterScreenState createState() => _RegisterScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
@@ -42,7 +44,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           displayName: _nameController.text.trim(),
         );
         
-        if (success && mounted) {
+        if (success) {
+          if (!context.mounted) return;
           // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -53,6 +56,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           
           // Registration successful - navigate back to login
           Navigator.pop(context);
+          if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Registration successful! Please log in.'),
@@ -61,15 +65,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
           );
         }
       } on String catch (errorMessage) {
-        if (mounted) {
+        if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(errorMessage),
               backgroundColor: Colors.red,
             ),
           );
-        }
       } catch (e) {
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString()),
@@ -117,7 +121,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: AppConfig.primaryColor.withOpacity(0.3),
+                            color: AppConfig.primaryColor.withValues(alpha: 0.3),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
@@ -166,7 +170,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
+                            color: Colors.black.withValues(alpha: 0.08),
                             blurRadius: 15,
                             offset: const Offset(0, 4),
                           ),

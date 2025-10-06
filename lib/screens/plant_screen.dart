@@ -1,6 +1,7 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, unnecessary_brace_in_string_interps, unused_local_variable
 
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import '../config/app_config.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
@@ -23,14 +24,21 @@ class PlantScreen extends StatefulWidget {
 class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
   Uint8List? _previewBytes;
   List<Map<String, dynamic>> _results = [];
+  List<Map<String, dynamic>> _resultsA = [];
+  List<Map<String, dynamic>> _resultsB = [];
+  bool _showCombo = false;
+  bool _resultsCollapsed = false;
   bool _loading = false;
   String? _error;
 
   final _picker = ImagePicker();
-  final _tflite = TFLiteService();
+  final _tflite = TFLiteService.create();
+  TFLiteService? _tfliteB; // used only for combo
   final _ood = OODService();
+  final _oodKaggle = OODService();
   CameraController? _cameraController;
   bool _flashOn = false;
+  bool _didAutoOnce = false;
   final _history = ScanHistoryService();
   final _collections = CollectionService();
   final _feedback = FeedbackService();
@@ -43,7 +51,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
   final List<Map<String, String>> _modelOptions = const [
     {
       'key': 'v1',
-      'name': 'Model V1',
+      'name': 'Model Mendeley',
       'model': 'assets/models/herbal_classifier.tflite',
       'labels': 'assets/models/class_labels.txt',
       'extractor': 'assets/models/feature_extractor.tflite',
@@ -56,6 +64,15 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       'labels': 'assets/models/kaggle_class_labels.txt',
       'extractor': 'assets/models/kaggle_feature_extractor.tflite',
       'ood': 'assets/models/kaggle_complete_ood_stats.json',
+    },
+    {
+      'key': 'combo',
+      'name': 'Model Kaggle+Mendeley',
+      // combo uses both existing models at runtime; paths are ignored
+      'model': '',
+      'labels': '',
+      'extractor': '',
+      'ood': '',
     },
   ];
   String _selectedModelKey = 'v1';
@@ -86,10 +103,254 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
     // _maybeShowTutorial();
   }
 
+  Future<void> _toggleFlash() async {
+    final ctrl = _cameraController;
+    if (ctrl == null || !ctrl.value.isInitialized) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Camera not ready')),
+      );
+      return;
+    }
+    try {
+      final newMode = _flashOn ? FlashMode.off : FlashMode.torch;
+      await ctrl.setFlashMode(newMode);
+      if (!mounted) return;
+      setState(() {
+        _flashOn = !_flashOn;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Flash not available: $e')),
+      );
+    }
+  }
+
+  Widget _buildResultCardCombo(List<Map<String, dynamic>> a, List<Map<String, dynamic>> b) {
+    final theme = Theme.of(context);
+    List<Map<String, dynamic>> norm(List<Map<String, dynamic>> src) => src
+        .where((e) => (e['label'] ?? '').toString().isNotEmpty)
+        .map((e) => {
+              'label': (e['label'] ?? '').toString(),
+              'score': (e['score'] is num) ? (e['score'] as num).toDouble().clamp(0.0, 1.0) : 0.0,
+            })
+        .toList();
+    final aTop = norm(a).take(3).toList();
+    final bTop = norm(b).take(3).toList();
+
+    Widget col(String title, List<Map<String, dynamic>> items, Color bar) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.analytics_outlined, size: 16, color: theme.colorScheme.primary),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 6),
+          for (final e in items)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      e['label'] as String,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: 120,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value: (e['score'] as double).clamp(0.0, 1.0),
+                        minHeight: 8,
+                        backgroundColor: theme.dividerColor.withValues(alpha: 0.25),
+                        color: bar,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text('${(((e['score'] as double) * 100).round())}%', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.merge_type, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Top matches (Kaggle + Mendeley)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+              IconButton(
+                tooltip: _resultsCollapsed ? 'Expand' : 'Minimize',
+                onPressed: () => setState(() => _resultsCollapsed = !_resultsCollapsed),
+                icon: Icon(_resultsCollapsed ? Icons.expand_more : Icons.expand_less),
+              ),
+            ],
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 6),
+                // Save action (mirrors single card)
+                Row(
+                  children: [
+                    if (_savedToCollection)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.check_circle_outline, size: 16, color: Colors.green),
+                            SizedBox(width: 4),
+                            Text('Saved', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w700)),
+                          ],
+                        ),
+                      ),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: () async {
+                        try {
+                          if (_previewBytes == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Nothing to save: capture or pick an image first.')),
+                            );
+                            return;
+                          }
+                          await _collections.saveScan(
+                            plantName: _lastLabel,
+                            confidence: _lastConfidence,
+                          );
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Collection saving not available - cloud backend removed'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                        } catch (e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Save failed: $e')),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.bookmark_add_outlined),
+                      label: const Text('Save to collection'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                LayoutBuilder(
+                  builder: (ctx, c) {
+                    final twoCols = c.maxWidth > 520;
+                    if (twoCols) {
+                      return Row(
+                        children: [
+                          Expanded(child: col('Mendeley', aTop, theme.colorScheme.primary)),
+                          const SizedBox(width: 12),
+                          Expanded(child: col('Kaggle', bTop, const Color(0xFF66BB6A))),
+                        ],
+                      );
+                    }
+                    return Column(
+                      children: [
+                        col('Mendeley', aTop, theme.colorScheme.primary),
+                        const SizedBox(height: 12),
+                        col('Kaggle', bTop, const Color(0xFF66BB6A)),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                // Feedback actions (responsive)
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.spaceBetween,
+                  children: [
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 140, maxWidth: 220),
+                      child: TextButton.icon(
+                        onPressed: () => _showFeedbackModal('error'),
+                        icon: const Icon(Icons.report_problem_outlined, size: 16),
+                        label: const Text('Report Error', overflow: TextOverflow.ellipsis),
+                        style: TextButton.styleFrom(foregroundColor: Colors.orange[700]),
+                      ),
+                    ),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 160, maxWidth: 260),
+                      child: TextButton.icon(
+                        onPressed: () => _showFeedbackModal('suggestion'),
+                        icon: const Icon(Icons.lightbulb_outline, size: 16),
+                        label: const Text('Suggest Improvement', overflow: TextOverflow.ellipsis),
+                        style: TextButton.styleFrom(foregroundColor: theme.colorScheme.primary),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            crossFadeState: _resultsCollapsed ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            duration: const Duration(milliseconds: 180),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _tflite.dispose();
+    _tfliteB?.dispose();
     _cameraController?.dispose();
     super.dispose();
   }
@@ -114,6 +375,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
     try {
       // Re-init TFLite with new assets
       _tflite.dispose();
+      _tfliteB?.dispose();
       await _initModel();
       await _loadOodProfileForSelectedModel();
       // Reset OOD state
@@ -135,12 +397,30 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
 
   Future<void> _initModel() async {
     try {
-      final cfg = _modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first);
-      await _tflite.init(
-        modelAsset: cfg['model']!,
-        labelsAsset: cfg['labels']!,
-        extractorAsset: cfg['extractor']!,
-      );
+      if (_selectedModelKey == 'combo') {
+        // Init primary as V1
+        final v1 = _modelOptions.firstWhere((m) => m['key'] == 'v1');
+        await _tflite.init(
+          modelAsset: v1['model']!,
+          labelsAsset: v1['labels']!,
+          extractorAsset: v1['extractor']!,
+        );
+        // Init secondary as Kaggle
+        _tfliteB = TFLiteService.create();
+        final kaggle = _modelOptions.firstWhere((m) => m['key'] == 'kaggle');
+        await _tfliteB!.init(
+          modelAsset: kaggle['model']!,
+          labelsAsset: kaggle['labels']!,
+          extractorAsset: kaggle['extractor']!,
+        );
+      } else {
+        final cfg = _modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first);
+        await _tflite.init(
+          modelAsset: cfg['model']!,
+          labelsAsset: cfg['labels']!,
+          extractorAsset: cfg['extractor']!,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       // Debug: surface the exact error in the console for troubleshooting
@@ -156,10 +436,21 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
 
   Future<void> _loadOodProfileForSelectedModel() async {
     try {
-      final cfg = _modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first);
-      final oodAsset = cfg['ood'];
-      if (oodAsset != null && oodAsset.isNotEmpty) {
-        await _ood.load(oodAsset);
+      if (_selectedModelKey == 'combo') {
+        final mCfg = _modelOptions.firstWhere((m) => m['key'] == 'v1');
+        final kCfg = _modelOptions.firstWhere((m) => m['key'] == 'kaggle');
+        if ((mCfg['ood'] ?? '').isNotEmpty) {
+          await _ood.load(mCfg['ood']!);
+        }
+        if ((kCfg['ood'] ?? '').isNotEmpty) {
+          await _oodKaggle.load(kCfg['ood']!);
+        }
+      } else {
+        final cfg = _modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first);
+        final oodAsset = cfg['ood'];
+        if (oodAsset != null && oodAsset.isNotEmpty) {
+          await _ood.load(oodAsset);
+        }
       }
     } catch (_) {
       // ignore OOD load errors; classification still works
@@ -181,11 +472,45 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       );
       _cameraController = controller;
       await controller.initialize();
+      // Ensure torch is off on init and sync UI flag
+      try { await controller.setFlashMode(FlashMode.off); } catch (_) {}
       if (!mounted) return;
-      setState(() {});
+      setState(() { _flashOn = false; });
+      // Kick a one-time automatic classification so users see output immediately
+      // without tapping Capture. Safe-guard so it only runs once per screen open.
+      if (!_didAutoOnce) {
+        _didAutoOnce = true;
+        // Delay slightly to ensure preview settles
+        Future.delayed(const Duration(milliseconds: 300), _autoClassifyOnce);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() { _error = 'Camera not available: $e'; });
+    }
+  }
+
+  Future<void> _autoClassifyOnce() async {
+    try {
+      final ctrl = _cameraController;
+      if (ctrl == null || !ctrl.value.isInitialized) return;
+      if (!_tflite.isInitialized || (_selectedModelKey == 'combo' && (_tfliteB == null || !_tfliteB!.isInitialized))) {
+        await _initModel();
+      }
+      final pic = await ctrl.takePicture();
+      final bytes = await pic.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _previewBytes = bytes;
+        _results = [];
+        _resultsA = [];
+        _resultsB = [];
+        _showCombo = false;
+        _error = null;
+        _savedToCollection = false;
+      });
+      await _classify(bytes);
+    } catch (_) {
+      // Ignore auto errors; user can still tap Capture manually
     }
   }
   void _showTutorial() {
@@ -270,7 +595,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
 
   Future<void> _pickFromGallery() async {
     try {
-      if (!_tflite.isInitialized) {
+      if (!_tflite.isInitialized || (_selectedModelKey == 'combo' && (_tfliteB == null || !_tfliteB!.isInitialized))) {
         await _initModel();
       }
       final file = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, imageQuality: 90);
@@ -282,7 +607,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
         _error = null;
         _savedToCollection = false; // Reset save status for new image
       });
-      if (_tflite.isInitialized) {
+      if (_tflite.isInitialized && (_selectedModelKey != 'combo' || (_tfliteB != null && _tfliteB!.isInitialized))) {
         await _classify(bytes);
       } else {
         if (!mounted) return;
@@ -299,7 +624,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       if (_cameraController == null || !_cameraController!.value.isInitialized) {
         await _initCamera();
       }
-      if (!_tflite.isInitialized) {
+      if (!_tflite.isInitialized || (_selectedModelKey == 'combo' && (_tfliteB == null || !_tfliteB!.isInitialized))) {
         await _initModel();
       }
       if (_cameraController == null || !_cameraController!.value.isInitialized) {
@@ -327,6 +652,9 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
     setState(() {
       _loading = true;
       _results = [];
+      _resultsA = [];
+      _resultsB = [];
+      _showCombo = false;
       _error = null;
       _savedToCollection = false;
       _oodReason = null;
@@ -338,14 +666,104 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
     });
     try {
       // 1) Classify top-K (for UI)
-      final topKRes = await _tflite.classify(bytes, topK: 3);
+      List<Map<String, dynamic>> topKRes;
+      List<double> probs = const [];
+      List<double> emb = const [];
+      bool usingPrimary = true; // which model feeds OOD
+
+      if (_selectedModelKey == 'combo' && _tfliteB != null && _tfliteB!.isInitialized) {
+        final aTop = await _tflite.classify(bytes, topK: 3);
+        final bTop = await _tfliteB!.classify(bytes, topK: 3);
+        // ignore: avoid_print
+        print('[Combo] Mendeley top: ${aTop.map((e)=>'${e['label']}:${(e['score'] as num).toDouble().toStringAsFixed(3)}').join(', ')}');
+        // ignore: avoid_print
+        print('[Combo] Kaggle top: ${bTop.map((e)=>'${e['label']}:${(e['score'] as num).toDouble().toStringAsFixed(3)}').join(', ')}');
+
+        // Pick better top score model for OOD inputs
+        final aBest = aTop.isNotEmpty ? (aTop.first['score'] as num?)?.toDouble() ?? 0.0 : 0.0;
+        final bBest = bTop.isNotEmpty ? (bTop.first['score'] as num?)?.toDouble() ?? 0.0 : 0.0;
+        usingPrimary = aBest >= bBest;
+
+        // Merge unique labels by highest score
+        final Map<String, double> merged = {};
+        void addAll(List<Map<String, dynamic>> src) {
+          for (final e in src) {
+            final l = (e['label'] ?? '').toString();
+            final s = (e['score'] is num) ? (e['score'] as num).toDouble() : 0.0;
+            if (l.isEmpty) continue;
+            if (!merged.containsKey(l) || s > merged[l]!) merged[l] = s;
+          }
+        }
+        addAll(aTop);
+        addAll(bTop);
+        final mergedList = merged.entries
+            .map((e) => {'label': e.key, 'score': e.value})
+            .toList()
+          ..sort((x, y) => (y['score'] as double).compareTo(x['score'] as double));
+
+        // Ensure at least one from each model if available
+        final List<Map<String, dynamic>> seeded = [];
+        if (aTop.isNotEmpty) {
+          seeded.add({
+            'label': (aTop.first['label'] ?? '').toString(),
+            'score': ((aTop.first['score'] as num?)?.toDouble() ?? 0.0),
+            'src': 'mendeley',
+          });
+        }
+        if (bTop.isNotEmpty) {
+          // Prefer a Kaggle label that differs; else allow duplicate with suffix
+          Map<String, dynamic>? pickB;
+          for (final e in bTop) {
+            final l = (e['label'] ?? '').toString();
+            if (l.isEmpty) continue;
+            if (!seeded.any((x) => x['label'] == l)) { pickB = e; break; }
+          }
+          pickB ??= bTop.first;
+          final bLabel = (pickB['label'] ?? '').toString();
+          final duplicate = seeded.any((x) => x['label'] == bLabel);
+          seeded.add({
+            'label': duplicate ? '$bLabel (Kaggle)' : bLabel,
+            'score': ((pickB['score'] as num?)?.toDouble() ?? 0.0),
+            'src': 'kaggle',
+          });
+        }
+        for (final e in mergedList) {
+          if (seeded.length >= 3) break;
+          if (!seeded.any((x) => x['label'] == e['label'])) seeded.add(e);
+        }
+        // Sort by score for display
+        seeded.sort((x, y) => (y['score'] as double).compareTo(x['score'] as double));
+        topKRes = seeded.take(3).toList();
+
+        // Prepare group displays (preserve original labels without suffixes)
+        List<Map<String, dynamic>> normalize(List<Map<String, dynamic>> src) => src
+            .map((e) => {
+                  'label': (e['label'] ?? '').toString(),
+                  'score': (e['score'] is num) ? (e['score'] as num).toDouble().clamp(0.0, 1.0) : 0.0,
+                })
+            .toList();
+        _resultsA = normalize(aTop);
+        _resultsB = normalize(bTop);
+        _showCombo = true;
+
+        // Collect both models' inputs for OOD
+        final probsA = await _tflite.predictProbs(bytes);
+        final embA = await _tflite.getEmbedding(bytes);
+        final probsB = await _tfliteB!.predictProbs(bytes);
+        final embB = await _tfliteB!.getEmbedding(bytes);
+        // Default to using primary for downstream fields; we'll evaluate both below
+        probs = usingPrimary ? probsA : probsB;
+        emb = usingPrimary ? embA : embB;
+      } else {
+        topKRes = await _tflite.classify(bytes, topK: 3);
+        probs = await _tflite.predictProbs(bytes);
+        emb = await _tflite.getEmbedding(bytes);
+      }
       // Reduce noise: omit Top-3 console print
 
       // 2) Prepare inputs for full OOD pipeline
-      //    a) Full probability vector
-      final probs = await _tflite.predictProbs(bytes);
-      //    b) Embedding
-      final emb = await _tflite.getEmbedding(bytes);
+      //    a) Full probability vector: prepared above
+      //    b) Embedding: prepared above
       //    c) Resized RGB 224 image for visual checks
       final decoded = img.decodeImage(bytes);
       final resized = decoded != null ? img.copyResize(decoded, width: 224, height: 224, interpolation: img.Interpolation.linear) : null;
@@ -355,27 +773,54 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       double oodScore = 0.0;
       double calibratedConf = 0.0;
       String? rejReason;
-      if (resized != null && probs.isNotEmpty && emb.isNotEmpty) {
-        final ev = _ood.evaluate(resizedRgb224: resized, probs: probs, embedding: emb);
-        isOod = (ev['isOOD'] == true);
-        oodScore = (ev['oodScore'] is num) ? (ev['oodScore'] as num).toDouble() : 0.0;
-        calibratedConf = (ev['calibratedConfidence'] is num) ? (ev['calibratedConfidence'] as num).toDouble() : 0.0;
-        final rr = ev['rejectionReason'];
-        rejReason = (rr is String && rr.trim().isNotEmpty) ? rr.trim() : null;
-        final skinRatio = (ev['skinRatio'] is num) ? (ev['skinRatio'] as num).toDouble() : null;
-        final edgeDensity = (ev['edgeDensity'] is num) ? (ev['edgeDensity'] as num).toDouble() : null;
-        final greenRatio = (ev['greenRatio'] is num) ? (ev['greenRatio'] as num).toDouble() : null;
-        _oodConf = calibratedConf;
-        _oodScore = oodScore;
-        _skinRatio = skinRatio;
-        _edgeDensity = edgeDensity;
-        _greenRatio = greenRatio;
-        // Single concise debugPrint
-        // ignore: avoid_print
-        debugPrint('[OOD] reason=${rejReason ?? 'null'} conf=${calibratedConf.toStringAsFixed(3)} ood=${oodScore.toStringAsFixed(3)}'
-            '${skinRatio != null ? ' skin=${skinRatio.toStringAsFixed(3)}' : ''}'
-            '${edgeDensity != null ? ' edge=${edgeDensity.toStringAsFixed(3)}' : ''}'
-            '${greenRatio != null ? ' green=${greenRatio.toStringAsFixed(3)}' : ''}');
+      if (resized != null) {
+        if (_selectedModelKey == 'combo' && _tfliteB != null && _tfliteB!.isInitialized) {
+          final probsA = await _tflite.predictProbs(bytes);
+          final embA = await _tflite.getEmbedding(bytes);
+          final probsB = await _tfliteB!.predictProbs(bytes);
+          final embB = await _tfliteB!.getEmbedding(bytes);
+          final evA = _ood.evaluate(resizedRgb224: resized, probs: probsA, embedding: embA);
+          final evB = _oodKaggle.evaluate(resizedRgb224: resized, probs: probsB, embedding: embB);
+          final order = { 'HUMAN_DETECTED': 3, 'STATISTICAL_OOD': 2, 'LOW_CONFIDENCE': 1, null: 0 };
+          final isA = (evA['isOOD'] as bool?) ?? false;
+          final isB = (evB['isOOD'] as bool?) ?? false;
+          isOod = isA || isB;
+          final scoreA = (evA['oodScore'] as num?)?.toDouble() ?? 0.0;
+          final scoreB = (evB['oodScore'] as num?)?.toDouble() ?? 0.0;
+          oodScore = (scoreA >= scoreB) ? scoreA : scoreB;
+          final rA = evA['rejectionReason']?.toString();
+          final rB = evB['rejectionReason']?.toString();
+          rejReason = (order[rA] ?? 0) >= (order[rB] ?? 0) ? rA : rB;
+          final cA = (evA['calibratedConfidence'] as num?)?.toDouble() ?? 0.0;
+          final cB = (evB['calibratedConfidence'] as num?)?.toDouble() ?? 0.0;
+          calibratedConf = math.min(cA, cB);
+          final pick = (order[rA] ?? 0) >= (order[rB] ?? 0) ? evA : evB;
+          _skinRatio = (pick['skinRatio'] as num?)?.toDouble();
+          _edgeDensity = (pick['edgeDensity'] as num?)?.toDouble();
+          _greenRatio = (pick['greenRatio'] as num?)?.toDouble();
+          _oodConf = calibratedConf;
+          _oodScore = oodScore;
+          debugPrint('[OOD] combo: A={is:$isA, score:$scoreA, reason:$rA} B={is:$isB, score:$scoreB, reason:$rB} -> is:$isOod reason:$rejReason conf=${calibratedConf.toStringAsFixed(3)} ood=${oodScore.toStringAsFixed(3)}');
+        } else if (probs.isNotEmpty && emb.isNotEmpty) {
+          final ev = _ood.evaluate(resizedRgb224: resized, probs: probs, embedding: emb);
+          isOod = (ev['isOOD'] == true);
+          oodScore = (ev['oodScore'] is num) ? (ev['oodScore'] as num).toDouble() : 0.0;
+          calibratedConf = (ev['calibratedConfidence'] is num) ? (ev['calibratedConfidence'] as num).toDouble() : 0.0;
+          final rr = ev['rejectionReason'];
+          rejReason = (rr is String && rr.trim().isNotEmpty) ? rr.trim() : null;
+          final skinRatio = (ev['skinRatio'] is num) ? (ev['skinRatio'] as num).toDouble() : null;
+          final edgeDensity = (ev['edgeDensity'] is num) ? (ev['edgeDensity'] as num).toDouble() : null;
+          final greenRatio = (ev['greenRatio'] is num) ? (ev['greenRatio'] as num).toDouble() : null;
+          _oodConf = calibratedConf;
+          _oodScore = oodScore;
+          _skinRatio = skinRatio;
+          _edgeDensity = edgeDensity;
+          _greenRatio = greenRatio;
+          debugPrint('[OOD] reason=${rejReason ?? 'null'} conf=${calibratedConf.toStringAsFixed(3)} ood=${oodScore.toStringAsFixed(3)}'
+              '${skinRatio != null ? ' skin=${skinRatio.toStringAsFixed(3)}' : ''}'
+              '${edgeDensity != null ? ' edge=${edgeDensity.toStringAsFixed(3)}' : ''}'
+              '${greenRatio != null ? ' green=${greenRatio.toStringAsFixed(3)}' : ''}');
+        }
       }
 
       // 4) Final results for UI: hide predictions for hard OOD reasons
@@ -387,7 +832,16 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       }
 
       if (!mounted) return;
-      setState(() { _results = finalRes; _oodReason = rejReason; });
+      setState(() {
+        _results = finalRes;
+        _oodReason = rejReason;
+        if (hardOod) {
+          // Hide split Mendeley/Kaggle lists when we reject as OOD
+          _showCombo = false;
+          _resultsA = [];
+          _resultsB = [];
+        }
+      });
 
       // 5) Persist to history (mark as OOD when hard rejection)
       final top = finalRes.isNotEmpty ? finalRes.first : null;
@@ -435,21 +889,6 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       if (mounted) setState(() { _loading = false; });
     }
   }
-
-  Future<void> _toggleFlash() async {
-    try {
-      final ctrl = _cameraController;
-      if (ctrl == null || !ctrl.value.isInitialized) return;
-      _flashOn = !_flashOn;
-      await ctrl.setFlashMode(_flashOn ? FlashMode.torch : FlashMode.off);
-      if (mounted) setState(() {});
-    } catch (e) {
-      if (!mounted) return;
-      setState(() { _error = 'Flash not available: $e'; });
-    }
-  }
-
-  
 
   @override
   Widget build(BuildContext context) {
@@ -706,6 +1145,13 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                           {'label': _error, 'score': 0.0},
                         ]),
                       )
+                    else if (_showCombo && (_resultsA.isNotEmpty || _resultsB.isNotEmpty))
+                      Positioned(
+                        bottom: 20,
+                        left: 20,
+                        right: 20,
+                        child: _buildResultCardCombo(_resultsA, _resultsB),
+                      )
                     else if (_results.isNotEmpty)
                       Positioned(
                         bottom: 20,
@@ -958,10 +1404,11 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                               );
                             }
 
+                            if (!ctx.mounted) return;
                             Navigator.of(ctx).pop();
                             
                             if (success) {
-                              if (!mounted) return;
+                              if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
@@ -973,7 +1420,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                                 ),
                               );
                             } else {
-                              if (!mounted) return;
+                              if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('Failed to submit feedback. Please try again.'),
@@ -982,8 +1429,10 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                               );
                             }
                           } catch (e) {
-                            Navigator.of(ctx).pop();
-                            if (!mounted) return;
+                            if (ctx.mounted) {
+                              Navigator.of(ctx).pop();
+                            }
+                            if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Error: $e'),
@@ -1049,6 +1498,27 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header with collapse toggle
+          Row(
+            children: [
+              Icon(Icons.local_florist, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Results', maxLines: 1, overflow: TextOverflow.ellipsis, style: titleStyle),
+              ),
+              IconButton(
+                tooltip: _resultsCollapsed ? 'Expand' : 'Minimize',
+                onPressed: () => setState(() => _resultsCollapsed = !_resultsCollapsed),
+                icon: Icon(_resultsCollapsed ? Icons.expand_more : Icons.expand_less),
+              ),
+            ],
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: const SizedBox(height: 8),
+            crossFadeState: _resultsCollapsed ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            duration: const Duration(milliseconds: 180),
+          ),
           if (isUnknown)
             Container(
               width: double.infinity,
@@ -1078,6 +1548,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
               ),
             ),
           // Save to Collection action + Saved badge
+          if (!_resultsCollapsed)
           Row(
             children: [
               if (_savedToCollection)
@@ -1133,13 +1604,16 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
               ),
             ],
           ),
-          Text('Top matches', style: titleStyle),
+          if (!_resultsCollapsed)
+            Text('Top matches', style: titleStyle),
           const SizedBox(height: 4),
-          Text(
-            'Best guess based on visual features',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.textTheme.bodySmall?.color?.withOpacity(0.7), fontWeight: FontWeight.w500) ?? const TextStyle(fontSize: 12),
-          ),
+          if (!_resultsCollapsed)
+            Text(
+              'Best guess based on visual features',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.textTheme.bodySmall?.color?.withOpacity(0.7), fontWeight: FontWeight.w500) ?? const TextStyle(fontSize: 12),
+            ),
           const SizedBox(height: 8),
+          if (!_resultsCollapsed)
           for (final item in results)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
@@ -1182,29 +1656,44 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                 ],
               ),
             ),
-          const SizedBox(height: 8),
-          // Feedback Actions Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              TextButton.icon(
-                onPressed: () => _showFeedbackModal('error'),
-                icon: const Icon(Icons.report_problem_outlined, size: 16),
-                label: const Text('Report Error'),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.orange[700],
+          if (!_resultsCollapsed) const SizedBox(height: 8),
+          if (!_resultsCollapsed)
+            // Feedback Actions (responsive, avoids horizontal overflow)
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              alignment: WrapAlignment.spaceBetween,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 140, maxWidth: 220),
+                  child: TextButton.icon(
+                    onPressed: () => _showFeedbackModal('error'),
+                    icon: const Icon(Icons.report_problem_outlined, size: 16),
+                    label: const Text(
+                      'Report Error',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.orange[700],
+                    ),
+                  ),
                 ),
-              ),
-              TextButton.icon(
-                onPressed: () => _showFeedbackModal('suggestion'),
-                icon: const Icon(Icons.lightbulb_outline, size: 16),
-                label: const Text('Suggest Improvement'),
-                style: TextButton.styleFrom(
-                  foregroundColor: theme.colorScheme.primary,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 160, maxWidth: 260),
+                  child: TextButton.icon(
+                    onPressed: () => _showFeedbackModal('suggestion'),
+                    icon: const Icon(Icons.lightbulb_outline, size: 16),
+                    label: const Text(
+                      'Suggest Improvement',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: theme.colorScheme.primary,
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
     );

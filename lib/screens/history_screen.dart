@@ -5,6 +5,8 @@ import '../config/app_config.dart';
 import '../services/scan_history_service.dart';
 
 class HistoryScreen extends StatefulWidget {
+  const HistoryScreen({super.key});
+
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
@@ -114,8 +116,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Text(
-                          'This scan was flagged as Unknown by OOD detection' +
-                              (scan.oodSim != null ? ' (similarity ${(scan.oodSim! * 100).toStringAsFixed(0)}%)' : ''),
+                          'This scan was flagged as Unknown by OOD detection${scan.oodSim != null ? ' (similarity ${(scan.oodSim! * 100).toStringAsFixed(0)}%)' : ''}',
                           style: theme.textTheme.bodyMedium?.copyWith(color: Colors.orange[700], fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -140,7 +141,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 child: LinearProgressIndicator(
                                   value: (cand['score'] is num) ? (cand['score'] as num).toDouble().clamp(0.0, 1.0) : 0.0,
                                   minHeight: 8,
-                                  backgroundColor: theme.dividerColor.withOpacity(0.25),
+                                  backgroundColor: theme.dividerColor.withValues(alpha: 0.25),
                                   color: theme.colorScheme.primary,
                                 ),
                               ),
@@ -222,11 +223,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             if (confirmed == true) {
                               await _service.clear();
                               await _load();
-                              if (mounted) {
+                              if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('History cleared')),
                                 );
-                              }
                             }
                           },
                           icon: const Icon(Icons.delete_sweep_outlined),
@@ -303,7 +303,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withValues(alpha: 0.1),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -362,7 +362,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           child: Text(
                             'No scans yet. Try scanning a plant!',
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                              color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
                             ),
                           ),
                         )
@@ -390,7 +390,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 15,
             offset: const Offset(0, 4),
           ),
@@ -459,8 +459,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  color.withOpacity(0.3),
-                  color.withOpacity(0.1),
+                  color.withValues(alpha: 0.3),
+                  color.withValues(alpha: 0.1),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -498,8 +498,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: isSuccess 
-                            ? const Color(0xFF4CAF50).withOpacity(0.1)
-                            : Colors.orange.withOpacity(0.1),
+                            ? const Color(0xFF4CAF50).withValues(alpha: 0.1)
+                            : Colors.orange.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(

@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_single_cascade_in_expression_statements, prefer_final_fields
+
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
@@ -7,17 +9,23 @@ import 'package:image/image.dart' as img;
 
 class TFLiteService {
   static final TFLiteService _instance = TFLiteService._internal();
+  // Default factory keeps singleton behavior for existing usage
   factory TFLiteService() => _instance;
   TFLiteService._internal();
-
+  // Private fresh instance constructor
+  TFLiteService._new();
+  // Create a brand new independent instance (not the singleton)
+  static TFLiteService create() => TFLiteService._new();
   Interpreter? _interpreter;
   Interpreter? _embedder; // optional feature extractor
   bool _initialized = false;
   int _inputSize = 224;
   bool _isQuant = true; // default to quant model
-  List<String> _labels = [];
+  final List<String> _labels = [];
+  ModelVariant _variant = ModelVariant.v1;
 
   bool get isInitialized => _initialized;
+  ModelVariant get variant => _variant;
 
   Future<void> init({
     String modelAsset = 'assets/models/herbal_classifier_mobile.tflite',
@@ -49,14 +57,26 @@ class TFLiteService {
     // Load labels
     try {
       final labelsTxt = await rootBundle.loadString(labelsAsset);
-      _labels = labelsTxt
-          .split('\n')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList();
+      _labels
+        ..clear()
+        ..addAll(labelsTxt
+            .split('\n')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty));
     } catch (_) {
-      _labels = [];
+      _labels
+        ..clear();
     }
+
+    // Detect variant from asset name and print debugging info
+    final lower = modelAsset.toLowerCase();
+    if (lower.contains('kaggle')) {
+      _variant = ModelVariant.kaggle;
+    } else {
+      _variant = ModelVariant.v1;
+    }
+    // ignore: avoid_print
+    print('[TFLiteService] init: model=$modelAsset labels=$labelsAsset extractor=${extractorAsset ?? '-'} variant=$_variant');
 
     // Optionally load feature extractor
     if (extractorAsset != null && extractorAsset.isNotEmpty) {
@@ -167,4 +187,10 @@ class TFLiteService {
     final s = exps.fold(0.0, (a, b) => a + b);
     return exps.map((e) => e / (s + 1e-10)).toList();
   }
+}
+
+enum ModelVariant {
+  v1,
+  kaggle,
+  mendeleyKaggle,
 }

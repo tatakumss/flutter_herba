@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'config/app_config.dart';
@@ -10,10 +9,9 @@ import 'services/auth_service.dart';
 import 'services/firestore_service.dart';
 
 void main() async {
-  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized();
   
-  // Preserve the splash screen until app is ready
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  // Splash preservation removed (flutter_native_splash not required here)
   
   try {
     // Initialize Firebase
@@ -38,6 +36,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
