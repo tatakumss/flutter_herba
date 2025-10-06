@@ -43,24 +43,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _passwordController.text,
           displayName: _nameController.text.trim(),
         );
-        
         if (success) {
-          if (!context.mounted) return;
-          // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Account created successfully! Please verify your email.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          
-          // Registration successful - navigate back to login
+          if (!mounted) return;
+          // Navigate back to login
           Navigator.pop(context);
           if (!context.mounted) return;
+          // Inform the user on the previous screen
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Registration successful! Please log in.'),
+              content: Text('Account created successfully! Please log in with your credentials.'),
               backgroundColor: Colors.green,
+              duration: Duration(seconds: 4),
             ),
           );
         }

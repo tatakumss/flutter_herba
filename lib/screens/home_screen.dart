@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use, sized_box_for_whitespace
 
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import '../config/app_config.dart';
 import 'plant_screen.dart';
 import '../services/plant_library_service.dart';
@@ -92,10 +93,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
+                      onPressed: () async {
+                        await Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => PlantScreen()),
                         );
+                        // Rebuild to re-trigger FutureBuilder and fetch latest collections
+                        if (mounted) setState(() {});
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
@@ -360,9 +363,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCollectionCard(BuildContext context, Map<String, dynamic> collection) {
-    final name = collection['name']?.toString() ?? 'Unknown Plant';
-    final confidence = collection['confidence'] as double? ?? 0.0;
-    final isOod = collection['isOod'] as bool? ?? false;
+    // Fields come from CollectionService.getCollections():
+    // plantName, imageUrl, imageData, plantInfo (map), isFavorite
+    final info = (collection['plantInfo'] as Map<String, dynamic>?) ?? {};
+    final name = (collection['plantName']?.toString() ?? 'Unknown').trim().isNotEmpty
+        ? collection['plantName'].toString()
+        : 'Unknown';
+    final confidence = (info['confidence'] is num) ? (info['confidence'] as num).toDouble() : 0.0;
+    final isOod = (info['isOod'] as bool?) ?? false;
     
     return Container(
       width: 160,
@@ -380,19 +388,29 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Stack(
         children: [
-          // Background placeholder (no cloud storage)
-          Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: BoxDecoration(
-              color: AppConfig.primaryColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(
-              Icons.local_florist,
-              color: AppConfig.primaryColor,
-              size: 32,
-            ),
+          // Background: show imageUrl, else base64 imageData, else placeholder
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: () {
+              final url = collection['imageUrl'] as String?;
+              final data = collection['imageData'] as String?;
+              if (url != null && url.isNotEmpty) {
+                return Image.network(url, fit: BoxFit.cover, width: double.infinity, height: double.infinity);
+              } else if (data != null && data.isNotEmpty) {
+                try {
+                  final bytes = base64Decode(data);
+                  return Image.memory(bytes, fit: BoxFit.cover, width: double.infinity, height: double.infinity);
+                } catch (_) {
+                  // fall back to placeholder
+                }
+              }
+              return Container(
+                width: double.infinity,
+                height: double.infinity,
+                color: AppConfig.primaryColor.withValues(alpha: 0.12),
+                child: Icon(Icons.local_florist, color: AppConfig.primaryColor, size: 32),
+              );
+            }(),
           ),
           
           // Overlay with gradient and content

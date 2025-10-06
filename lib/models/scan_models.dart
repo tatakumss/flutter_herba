@@ -119,6 +119,7 @@ class CollectionItem {
   final String userId;
   final String plantName;
   final String? imageUrl;
+  final String? imageData; // base64-encoded image bytes (if stored directly in Firestore)
   final DateTime addedAt;
   final String? notes;
   final Map<String, dynamic>? plantInfo;
@@ -129,6 +130,7 @@ class CollectionItem {
     required this.userId,
     required this.plantName,
     this.imageUrl,
+    this.imageData,
     required this.addedAt,
     this.notes,
     this.plantInfo,
@@ -141,6 +143,7 @@ class CollectionItem {
       'userId': userId,
       'plantName': plantName,
       'imageUrl': imageUrl,
+      'imageData': imageData,
       'addedAt': Timestamp.fromDate(addedAt),
       'notes': notes,
       'plantInfo': plantInfo ?? {},
@@ -155,6 +158,7 @@ class CollectionItem {
       userId: data['userId'] ?? '',
       plantName: data['plantName'] ?? '',
       imageUrl: data['imageUrl'],
+      imageData: data['imageData'],
       addedAt: (data['addedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       notes: data['notes'],
       plantInfo: data['plantInfo'] as Map<String, dynamic>?,
@@ -168,6 +172,7 @@ class CollectionItem {
       userId: scanResult.userId,
       plantName: scanResult.plantName,
       imageUrl: scanResult.imageUrl,
+      imageData: scanResult.additionalData != null ? scanResult.additionalData!['imageData'] as String? : null,
       addedAt: DateTime.now(),
       notes: notes,
       plantInfo: scanResult.additionalData,

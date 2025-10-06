@@ -22,6 +22,7 @@ class CollectionService {
         'id': item.id,
         'plantName': item.plantName,
         'imageUrl': item.imageUrl,
+        'imageData': item.imageData,
         'addedAt': item.addedAt.toIso8601String(),
         'notes': item.notes,
         'plantInfo': item.plantInfo,
@@ -38,14 +39,26 @@ class CollectionService {
       final user = _auth.currentUser;
       if (user == null) return false;
 
+      // Prefer explicit plantInfo if provided; else build a compact map without imageData/imageUrl
+      final Map<String, dynamic>? providedInfo = plantData['plantInfo'] as Map<String, dynamic>?;
+      final compactInfo = providedInfo ?? {
+        if (plantData.containsKey('confidence')) 'confidence': plantData['confidence'],
+        if (plantData.containsKey('isOod')) 'isOod': plantData['isOod'],
+        if (plantData.containsKey('oodReason')) 'oodReason': plantData['oodReason'],
+        if (plantData.containsKey('oodScore')) 'oodScore': plantData['oodScore'],
+        if (plantData.containsKey('candidates')) 'candidates': plantData['candidates'],
+        if (plantData.containsKey('scannedAt')) 'scannedAt': plantData['scannedAt'],
+      };
+
       final collectionItem = CollectionItem(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         userId: user.uid,
         plantName: plantData['plantName'] ?? 'Unknown Plant',
         imageUrl: plantData['imageUrl'],
+        imageData: plantData['imageData'],
         addedAt: DateTime.now(),
         notes: plantData['notes'],
-        plantInfo: plantData,
+        plantInfo: compactInfo,
         isFavorite: plantData['isFavorite'] ?? false,
       );
 

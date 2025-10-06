@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:convert' as convert;
 import '../config/app_config.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
@@ -821,6 +822,30 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
               '${edgeDensity != null ? ' edge=${edgeDensity.toStringAsFixed(3)}' : ''}'
               '${greenRatio != null ? ' green=${greenRatio.toStringAsFixed(3)}' : ''}');
         }
+        // Heuristic: flat/glossy green objects (e.g., appliances) often have
+        // high green ratio but very low edge density and no skin. If OOD didn't
+        // trigger, add a conservative NON_PLANT_VISUAL rule to avoid false plant IDs.
+        if (!isOod) {
+          final g = (_greenRatio ?? 0.0);
+          final e = (_edgeDensity ?? 1.0);
+          final s = (_skinRatio ?? 0.0);
+          // Primary heuristic (uniform glossy green with very low edges and skin)
+          final ruleA = (g > 0.48 && e < 0.20 && s < 0.25);
+          // If the top guess is a leafy class, allow lower green and slightly higher edges when skin is near-zero
+          final topLabel = (topKRes.isNotEmpty ? (topKRes.first['label'] ?? '').toString().toLowerCase() : '');
+          final leafy = {'pandan','guava','banaba','tulsi','chakte','betel','calamansi'};
+          final ruleB = (leafy.contains(topLabel) && g > 0.25 && e < 0.24 && s < 0.10);
+          if (ruleA || ruleB) {
+            isOod = true;
+            rejReason = 'NON_PLANT_VISUAL';
+            // Boost OOD score to a sensible floor; reduce confidence conservatively
+            if (oodScore < 0.60) oodScore = 0.60;
+            calibratedConf = math.min(calibratedConf, 0.20);
+            _oodScore = oodScore;
+            _oodConf = calibratedConf;
+            debugPrint('[OOD] heuristic NON_PLANT_VISUAL applied g=${g.toStringAsFixed(3)} e=${e.toStringAsFixed(3)} s=${s.toStringAsFixed(3)} top=$topLabel');
+          }
+        }
       }
 
       // 4) Final results for UI: hide predictions for hard OOD reasons
@@ -1579,19 +1604,39 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                       );
                       return;
                     }
-                    // Collection service no longer saves to cloud storage
-                    await _collections.saveScan(
-                      plantName: _lastLabel,
-                      confidence: _lastConfidence,
-                    );
+                    // Prepare base64 image and metadata
+                    final imgB64 = convert.base64Encode(_previewBytes!);
+                    // Build top-3 candidates from current results
+                    List<Map<String, dynamic>> cands = [];
+                    final src = _results.isNotEmpty ? _results : (_resultsA.isNotEmpty ? _resultsA : _resultsB);
+                    for (final e in src.take(3)) {
+                      final l = (e['label'] ?? '').toString();
+                      final s = (e['score'] is num) ? (e['score'] as num).toDouble() : 0.0;
+                      cands.add({'name': l, 'confidence': s});
+                    }
+                    final plantData = {
+                      'plantName': _lastLabel.isNotEmpty ? _lastLabel : (src.isNotEmpty ? (src.first['label'] ?? 'Unknown').toString() : 'Unknown'),
+                      'imageData': imgB64,
+                      'isFavorite': false,
+                      // Store popup info inside plantInfo so Home can render it
+                      'confidence': _lastConfidence,
+                      'isOod': (_oodReason == 'HUMAN_DETECTED' || _oodReason == 'NON_PLANT_VISUAL' || _oodReason == 'STATISTICAL_OOD'),
+                      'oodReason': _oodReason,
+                      'oodScore': _oodScore,
+                      'candidates': cands,
+                      'scannedAt': DateTime.now().toIso8601String(),
+                    };
+                    final ok = await _collections.addToCollection(plantData);
                     if (!mounted) return;
-                    // Show message that cloud storage is not available
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Collection saving not available - cloud backend removed'),
-                        backgroundColor: Colors.orange,
+                      SnackBar(
+                        content: Text(ok ? 'Saved to collection' : 'Save failed'),
+                        backgroundColor: ok ? Colors.green : Colors.red,
                       ),
                     );
+                    if (ok) {
+                      setState(() { _savedToCollection = true; });
+                    }
                   } catch (e) {
                     if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(

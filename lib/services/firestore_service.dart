@@ -261,10 +261,12 @@ class FirestoreService {
 
   // SCAN RESULT METHODS
   
-  // Save scan result to Firestore
+  // Save scan result to Firestore (as subcollection under the user)
   Future<void> saveScanResult(ScanResult scanResult) async {
     try {
       await _firestore
+          .collection(_usersCollection)
+          .doc(scanResult.userId)
           .collection(_scansCollection)
           .doc(scanResult.id)
           .set(scanResult.toFirestore());
@@ -273,12 +275,13 @@ class FirestoreService {
     }
   }
 
-  // Get user's scan results
+  // Get user's scan results (subcollection under the user)
   Future<List<ScanResult>> getUserScans(String userId, {int limit = 50}) async {
     try {
       final querySnapshot = await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
           .collection(_scansCollection)
-          .where('userId', isEqualTo: userId)
           .orderBy('scannedAt', descending: true)
           .limit(limit)
           .get();
@@ -291,16 +294,28 @@ class FirestoreService {
     }
   }
 
-  // Get scan result by ID
+  // Get scan result by ID (tries current user's subcollection; falls back to top-level for backward compatibility)
   Future<ScanResult?> getScanResult(String scanId) async {
     try {
-      final doc = await _firestore
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid != null) {
+        final doc = await _firestore
+            .collection(_usersCollection)
+            .doc(currentUid)
+            .collection(_scansCollection)
+            .doc(scanId)
+            .get();
+        if (doc.exists) {
+          return ScanResult.fromFirestore(doc);
+        }
+      }
+      // Fallback: legacy top-level scans
+      final legacy = await _firestore
           .collection(_scansCollection)
           .doc(scanId)
           .get();
-
-      if (doc.exists) {
-        return ScanResult.fromFirestore(doc);
+      if (legacy.exists) {
+        return ScanResult.fromFirestore(legacy);
       }
       return null;
     } catch (e) {
@@ -308,10 +323,14 @@ class FirestoreService {
     }
   }
 
-  // Delete scan result
+  // Delete scan result (from current user's subcollection)
   Future<void> deleteScanResult(String scanId) async {
     try {
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid == null) throw Exception('Not authenticated');
       await _firestore
+          .collection(_usersCollection)
+          .doc(currentUid)
           .collection(_scansCollection)
           .doc(scanId)
           .delete();
@@ -322,10 +341,12 @@ class FirestoreService {
 
   // COLLECTION METHODS
 
-  // Add item to user's collection
+  // Add item to user's collection (subcollection under the user)
   Future<void> addToCollection(CollectionItem item) async {
     try {
       await _firestore
+          .collection(_usersCollection)
+          .doc(item.userId)
           .collection(_collectionsCollection)
           .doc(item.id)
           .set(item.toFirestore());
@@ -334,12 +355,13 @@ class FirestoreService {
     }
   }
 
-  // Get user's collection items
+  // Get user's collection items (subcollection under the user)
   Future<List<CollectionItem>> getUserCollection(String userId, {int limit = 50}) async {
     try {
       final querySnapshot = await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
           .collection(_collectionsCollection)
-          .where('userId', isEqualTo: userId)
           .orderBy('addedAt', descending: true)
           .limit(limit)
           .get();
@@ -352,10 +374,14 @@ class FirestoreService {
     }
   }
 
-  // Remove item from collection
+  // Remove item from collection (from current user's subcollection)
   Future<void> removeFromCollection(String itemId) async {
     try {
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid == null) throw Exception('Not authenticated');
       await _firestore
+          .collection(_usersCollection)
+          .doc(currentUid)
           .collection(_collectionsCollection)
           .doc(itemId)
           .delete();
@@ -364,10 +390,12 @@ class FirestoreService {
     }
   }
 
-  // Update collection item
+  // Update collection item (in user's subcollection)
   Future<void> updateCollectionItem(CollectionItem item) async {
     try {
       await _firestore
+          .collection(_usersCollection)
+          .doc(item.userId)
           .collection(_collectionsCollection)
           .doc(item.id)
           .update(item.toFirestore());
@@ -376,17 +404,19 @@ class FirestoreService {
     }
   }
 
-  // Get user's scan statistics
+  // Get user's scan statistics (from user's subcollections)
   Future<Map<String, dynamic>> getUserScanStats(String userId) async {
     try {
       final scansQuery = await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
           .collection(_scansCollection)
-          .where('userId', isEqualTo: userId)
           .get();
 
       final collectionsQuery = await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
           .collection(_collectionsCollection)
-          .where('userId', isEqualTo: userId)
           .get();
 
       final totalScans = scansQuery.docs.length;
@@ -406,13 +436,4 @@ class FirestoreService {
     }
   }
 
-  // Initialize Firestore settings (call this in main.dart)
-  static Future<void> initialize() async {
-    try {
-      // Enable offline persistence
-      await FirebaseFirestore.instance.enablePersistence();
-    } catch (e) {
-      // Persistence may already be enabled or not supported
-    }
-  }
 }
