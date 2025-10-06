@@ -3,8 +3,8 @@
 import 'package:flutter/material.dart';
 import '../config/app_config.dart';
 import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
 import 'edit_profile_screen.dart';
-import '../services/profile_local_store.dart';
 import 'about_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -16,35 +16,32 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _authService = AuthService();
-  final ProfileLocalStore _localStore = ProfileLocalStore();
-
-  String? _name;
-  String? _photoUrl;
+  
+  UserProfile? _userProfile;
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _name = _authService.currentUser?.displayName ?? _authService.currentUser?.email;
-    _photoUrl = null;
-    _initAndLoad();
+    _loadUserProfile();
   }
 
-  Future<void> _initAndLoad() async {
-    // Load local profile data
+  Future<void> _loadUserProfile() async {
     try {
-      final local = await _localStore.load();
-      if (!mounted) return;
-      if (local != null) {
+      final profile = await _authService.getUserProfile();
+      if (mounted) {
         setState(() {
-          if (local['name'] is String && (local['name'] as String).isNotEmpty) {
-            _name = local['name'] as String;
-          }
-          if (local['photoUrl'] is String && (local['photoUrl'] as String).isNotEmpty) {
-            _photoUrl = local['photoUrl'] as String;
-          }
+          _userProfile = profile;
+          _loading = false;
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
   }
 
   Future<void> _openEditProfile() async {
@@ -54,8 +51,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       MaterialPageRoute(
         builder: (_) => EditProfileScreen(
           userId: user?.uid ?? '',
-          initialName: _name,
-          initialPhotoUrl: _photoUrl,
+          initialName: _userProfile?.displayName ?? _authService.currentUser?.displayName,
+          initialPhotoUrl: _userProfile?.photoUrl,
         ),
       ),
     );
@@ -64,25 +61,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final name = result['name'];
       final photoUrl = result['photoUrl'];
       if (!mounted) return;
-      setState(() {
-        if (name is String && name.isNotEmpty) {
-          _name = name;
-        }
-        if (photoUrl is String && photoUrl.isNotEmpty) {
-          _photoUrl = photoUrl;
-        }
-      });
       
-      // Persist locally
-      await _localStore.save(
-        name: _name,
-        photoUrl: _photoUrl,
-      );
+      // Update profile in Firestore
+      try {
+        await _authService.updateUserProfile(
+          displayName: name as String?,
+          photoUrl: photoUrl as String?,
+        );
+        // Reload profile data
+        await _loadUserProfile();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to update profile: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    if (_loading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
     
     return Scaffold(
       body: SafeArea(
@@ -171,8 +181,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: CircleAvatar(
                         radius: 50,
                         backgroundColor: Colors.white,
-                        backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
-                        child: _photoUrl == null
+                        backgroundImage: _userProfile?.photoUrl != null ? NetworkImage(_userProfile!.photoUrl!) : null,
+                        child: _userProfile?.photoUrl == null
                             ? Icon(
                                 Icons.person,
                                 size: 50,
@@ -185,7 +195,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     
                     // Name
                     Text(
-                      _name ?? AppConfig.defaultUserName,
+                      _userProfile?.displayName ?? _authService.currentUser?.displayName ?? AppConfig.defaultUserName,
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,

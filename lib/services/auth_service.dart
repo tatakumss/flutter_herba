@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'firestore_service.dart';
 
 // User Model for Firebase Auth
 class AppwriteUser {
@@ -35,6 +36,7 @@ class AuthService {
   AuthService._internal();
   
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirestoreService _firestoreService = FirestoreService();
   final StreamController<AppwriteUser?> _authStateController = StreamController<AppwriteUser?>.broadcast();
   AppwriteUser? _currentUser;
   bool _autoLoginEnabled = false;
@@ -81,6 +83,11 @@ class AuthService {
   // Sign in with email and password (validates credentials only)
   Future<bool> signInWithEmailAndPassword(String email, String password) async {
     try {
+      // Validate inputs
+      if (email.isEmpty || password.isEmpty) {
+        throw 'Please enter both email and password.';
+      }
+
       final UserCredential result = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
@@ -95,7 +102,7 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthException(e);
     } catch (e) {
-      throw 'An unexpected error occurred. Please try again.';
+      throw 'Login failed: ${e.toString()}';
     }
   }
   
@@ -108,6 +115,19 @@ class AuthService {
       );
       
       if (result.user != null) {
+        // Ensure user profile exists in Firestore
+        try {
+          final userExists = await _firestoreService.userExists(result.user!.uid);
+          if (!userExists) {
+            // Create missing Firestore profile
+            final userProfile = UserProfile.fromFirebaseUser(result.user!);
+            await _firestoreService.createOrUpdateUser(userProfile);
+          }
+        } catch (firestoreError) {
+          // Continue with login even if Firestore fails
+          // This allows users to login even if Firestore is not set up yet
+        }
+        
         _currentUser = AppwriteUser.fromFirebaseUser(result.user!);
         _authStateController.add(_currentUser);
         return _currentUser;
@@ -116,28 +136,59 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthException(e);
     } catch (e) {
-      throw 'An unexpected error occurred. Please try again.';
+      throw 'Login failed: ${e.toString()}';
     }
   }
   
   // Register with email and password
   Future<bool> registerWithEmailAndPassword(String email, String password, {String? displayName}) async {
+    UserCredential? result;
+    
     try {
-      final UserCredential result = await _auth.createUserWithEmailAndPassword(
+      // Create Firebase Auth account
+      result = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
       
-      if (result.user != null && displayName != null && displayName.isNotEmpty) {
-        await result.user!.updateDisplayName(displayName);
-        await result.user!.reload();
+      if (result.user != null) {
+        // Update Firebase Auth profile
+        if (displayName != null && displayName.isNotEmpty) {
+          await result.user!.updateDisplayName(displayName);
+          await result.user!.reload();
+        }
+        
+        // Try to create user profile in Firestore
+        try {
+          final userProfile = UserProfile.fromFirebaseUser(result.user!);
+          await _firestoreService.createOrUpdateUser(userProfile);
+        } catch (firestoreError) {
+          // If Firestore fails, continue anyway - profile can be created later
+          // Don't throw error, just log it for debugging
+          // The user can still use the app with Firebase Auth only
+        }
       }
       
       return true;
     } on FirebaseAuthException catch (e) {
+      // If Firebase Auth fails, clean up and throw error
+      if (result?.user != null) {
+        try {
+          await result!.user!.delete();
+        } catch (deleteError) {
+          // Ignore deletion errors
+        }
+      }
       throw _handleFirebaseAuthException(e);
     } catch (e) {
-      throw 'An unexpected error occurred. Please try again.';
+      // If any other error occurs after account creation, don't delete the account
+      // The user can try to login later and the Firestore profile will be created then
+      if (result?.user == null) {
+        throw 'Registration failed. Please try again.';
+      } else {
+        // Account was created but something else failed
+        throw 'Account created successfully. Please try logging in.';
+      }
     }
   }
   
@@ -239,6 +290,61 @@ class AuthService {
     }
   }
   
+  // Get user profile from Firestore
+  Future<UserProfile?> getUserProfile() async {
+    if (_currentUser == null) return null;
+    
+    try {
+      return await _firestoreService.getUserProfile(_currentUser!.uid);
+    } catch (e) {
+      // Handle error silently
+      return null;
+    }
+  }
+
+  // Update user profile in Firestore
+  Future<void> updateUserProfile({
+    String? displayName,
+    String? photoUrl,
+    Map<String, dynamic>? preferences,
+  }) async {
+    if (_currentUser == null) return;
+
+    try {
+      // Update Firebase Auth profile if needed
+      if (displayName != null) {
+        await _auth.currentUser?.updateDisplayName(displayName);
+      }
+      if (photoUrl != null) {
+        await _auth.currentUser?.updatePhotoURL(photoUrl);
+      }
+
+      // Update Firestore profile
+      final currentProfile = await _firestoreService.getUserProfile(_currentUser!.uid);
+      if (currentProfile != null) {
+        final updatedProfile = currentProfile.copyWith(
+          displayName: displayName,
+          photoUrl: photoUrl,
+          preferences: preferences,
+        );
+        await _firestoreService.createOrUpdateUser(updatedProfile);
+      }
+
+      // Refresh current user
+      await refreshUser();
+    } catch (e) {
+      throw 'Failed to update profile: $e';
+    }
+  }
+
+  // Get user profile stream for real-time updates
+  Stream<UserProfile?> getUserProfileStream() {
+    if (_currentUser == null) {
+      return Stream.value(null);
+    }
+    return _firestoreService.getUserProfileStream(_currentUser!.uid);
+  }
+
   // Dispose
   void dispose() {
     _authStateController.close();

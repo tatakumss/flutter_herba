@@ -1,39 +1,153 @@
-// Collection service removed - no longer using cloud storage
+import 'package:firebase_auth/firebase_auth.dart';
+import 'firestore_service.dart';
+import '../models/scan_models.dart';
+
+// Enhanced collection service with Firestore integration
 class CollectionService {
-  // Singleton pattern
   static final CollectionService _instance = CollectionService._internal();
   factory CollectionService() => _instance;
   CollectionService._internal();
 
-  // Get user collections (now returns empty list)
-  Future<List<Map<String, dynamic>>> getUserCollections() async {
-    // No cloud storage - return empty collections
-    return [];
+  final FirestoreService _firestoreService = FirestoreService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  /// Get user's collections
+  Future<List<Map<String, dynamic>>> getCollections() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return [];
+
+      final collections = await _firestoreService.getUserCollection(user.uid);
+      return collections.map((item) => {
+        'id': item.id,
+        'plantName': item.plantName,
+        'imageUrl': item.imageUrl,
+        'addedAt': item.addedAt.toIso8601String(),
+        'notes': item.notes,
+        'plantInfo': item.plantInfo,
+        'isFavorite': item.isFavorite,
+      }).toList();
+    } catch (e) {
+      return [];
+    }
   }
 
-  // Save scan to collection (now returns false)
-  Future<bool> saveScanToCollection({
-    required String plantName,
-    required double confidence,
-    String? additionalInfo,
-  }) async {
-    // No cloud storage - cannot save
-    return false;
+  /// Add to collection
+  Future<bool> addToCollection(Map<String, dynamic> plantData) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      final collectionItem = CollectionItem(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        userId: user.uid,
+        plantName: plantData['plantName'] ?? 'Unknown Plant',
+        imageUrl: plantData['imageUrl'],
+        addedAt: DateTime.now(),
+        notes: plantData['notes'],
+        plantInfo: plantData,
+        isFavorite: plantData['isFavorite'] ?? false,
+      );
+
+      await _firestoreService.addToCollection(collectionItem);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
-  // Get scans (now returns empty list)
+  /// Remove from collection
+  Future<bool> removeFromCollection(String documentId) async {
+    try {
+      await _firestoreService.removeFromCollection(documentId);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Check if plant is in collection
+  Future<bool> isInCollection(String plantName) async {
+    try {
+      final collections = await getCollections();
+      return collections.any((item) => 
+        item['plantName']?.toString().toLowerCase() == plantName.toLowerCase());
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Add scan result to collection
+  Future<bool> addScanToCollection(ScanResult scanResult, {String? notes}) async {
+    try {
+      final collectionItem = CollectionItem.fromScanResult(scanResult, notes: notes);
+      await _firestoreService.addToCollection(collectionItem);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Update collection item
+  Future<bool> updateCollectionItem(String itemId, Map<String, dynamic> updates) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      // Get existing item first
+      final collections = await getCollections();
+      final existingItem = collections.firstWhere(
+        (item) => item['id'] == itemId,
+        orElse: () => <String, dynamic>{},
+      );
+
+      if (existingItem.isEmpty) return false;
+
+      // Create updated collection item
+      final updatedItem = CollectionItem(
+        id: itemId,
+        userId: user.uid,
+        plantName: updates['plantName'] ?? existingItem['plantName'],
+        imageUrl: updates['imageUrl'] ?? existingItem['imageUrl'],
+        addedAt: DateTime.parse(existingItem['addedAt']),
+        notes: updates['notes'] ?? existingItem['notes'],
+        plantInfo: updates['plantInfo'] ?? existingItem['plantInfo'],
+        isFavorite: updates['isFavorite'] ?? existingItem['isFavorite'],
+      );
+
+      await _firestoreService.updateCollectionItem(updatedItem);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Get scans (for backward compatibility)
   Future<List<Map<String, dynamic>>> getScans() async {
-    // No cloud storage - return empty scans
-    return [];
+    return await getCollections();
   }
 
-  // Save scan (now returns empty map)
+  /// Save scan (for backward compatibility)
   Future<Map<String, dynamic>> saveScan({
     required String plantName,
     required double confidence,
     String? additionalInfo,
   }) async {
-    // No cloud storage - return empty result
-    return {};
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return {};
+
+      final plantData = {
+        'plantName': plantName,
+        'confidence': confidence,
+        'additionalInfo': additionalInfo,
+        'scannedAt': DateTime.now().toIso8601String(),
+      };
+
+      final success = await addToCollection(plantData);
+      return success ? {'success': true, 'id': DateTime.now().millisecondsSinceEpoch.toString()} : {};
+    } catch (e) {
+      return {};
+    }
   }
 }

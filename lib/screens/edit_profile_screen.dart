@@ -1,9 +1,11 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../config/app_config.dart';
 import '../services/auth_service.dart';
+import '../services/image_storage_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String userId;
@@ -24,7 +26,9 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameController;
   final AuthService _authService = AuthService();
+  final ImageStorageService _imageStorage = ImageStorageService();
   String? _photoUrl;
+  File? _selectedImage;
   bool _uploading = false;
   bool _picking = false;
 
@@ -51,19 +55,56 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
-    // No cloud backend - show message that profile cannot be saved
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Profile saving not available - cloud backend removed'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-    
-    // Still return the data for local use
-    Navigator.pop(context, {
-      'name': name,
-      'photoUrl': _photoUrl,
+    setState(() {
+      _uploading = true;
     });
+
+    try {
+      String? finalPhotoUrl = _photoUrl;
+
+      // Upload new image if selected
+      if (_selectedImage != null) {
+        finalPhotoUrl = await _imageStorage.uploadProfileImage(_selectedImage!);
+        if (finalPhotoUrl == null) {
+          throw Exception('Failed to upload profile image');
+        }
+      }
+
+      // Update profile in Firestore via AuthService
+      await _authService.updateUserProfile(
+        displayName: name,
+        photoUrl: finalPhotoUrl,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile updated successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pop(context, {
+          'name': name,
+          'photoUrl': finalPhotoUrl,
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update profile: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _uploading = false;
+        });
+      }
+    }
   }
 
   Future<void> _pickAndUploadAvatar() async {
@@ -80,11 +121,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
       if (picked == null) return;
       
-      // No cloud storage - just show message
+      // Set selected image for upload later
+      setState(() {
+        _selectedImage = File(picked.path);
+        _photoUrl = picked.path; // Show local path temporarily
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Photo upload not available - cloud backend removed'),
-          backgroundColor: Colors.orange,
+          content: Text('Image selected. Click Save to upload.'),
+          backgroundColor: Colors.blue,
         ),
       );
     } catch (e) {

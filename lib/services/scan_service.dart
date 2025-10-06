@@ -1,11 +1,22 @@
 
-// Scan service removed - no longer using cloud backend
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'firestore_service.dart';
+import 'image_storage_service.dart';
+import '../models/scan_models.dart';
+
+// Enhanced scan service with Firestore integration
 class ScanService {
   static final ScanService _instance = ScanService._internal();
   factory ScanService() => _instance;
   ScanService._internal();
 
-  /// Save a scan result (now returns null)
+  final FirestoreService _firestoreService = FirestoreService();
+  final ImageStorageService _imageStorage = ImageStorageService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  /// Save a scan result with image to Firestore
   Future<String?> saveScan({
     required String plantName,
     required double confidence,
@@ -13,12 +24,61 @@ class ScanService {
     required List<Map<String, dynamic>> candidates,
     String? oodReason,
     double? oodScore,
+    File? imageFile,
+    Uint8List? imageBytes,
   }) async {
-    // No cloud backend - cannot save scan
-    return null;
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Create scan result
+      final scanId = DateTime.now().millisecondsSinceEpoch.toString();
+      
+      // Upload image if provided
+      String? imageUrl;
+      if (imageFile != null) {
+        imageUrl = await _imageStorage.uploadScanImage(imageFile, scanId);
+      } else if (imageBytes != null) {
+        imageUrl = await _imageStorage.uploadScanImageFromBytes(imageBytes, scanId);
+      }
+
+      // Convert candidates to PlantCandidate objects
+      final plantCandidates = candidates.map((c) => PlantCandidate(
+        name: c['name'] ?? '',
+        confidence: (c['confidence'] as num?)?.toDouble() ?? 0.0,
+        description: c['description'],
+        metadata: c,
+      )).toList();
+
+      // Create scan result
+      final scanResult = ScanResult(
+        id: scanId,
+        userId: user.uid,
+        plantName: plantName,
+        confidence: confidence,
+        imageUrl: imageUrl,
+        scannedAt: DateTime.now(),
+        additionalData: {
+          'isOod': isOod,
+          'oodReason': oodReason,
+          'oodScore': oodScore,
+        },
+        isIdentified: !isOod && confidence > 0.5,
+        candidates: plantCandidates,
+      );
+
+      // Save to Firestore
+      await _firestoreService.saveScanResult(scanResult);
+      
+      return scanId;
+    } catch (e) {
+      return null;
+    }
   }
 
-  /// Save scan result (alternative method name - now returns null)
+  /// Save scan result (alternative method name)
   Future<String?> saveScanResult({
     required String plantName,
     required double confidence,
@@ -26,26 +86,84 @@ class ScanService {
     required List<Map<String, dynamic>> candidates,
     String? oodReason,
     double? oodScore,
+    File? imageFile,
+    Uint8List? imageBytes,
   }) async {
-    // No cloud backend - cannot save scan
-    return null;
+    return saveScan(
+      plantName: plantName,
+      confidence: confidence,
+      isOod: isOod,
+      candidates: candidates,
+      oodReason: oodReason,
+      oodScore: oodScore,
+      imageFile: imageFile,
+      imageBytes: imageBytes,
+    );
   }
 
-  /// Get all scans (now returns empty list)
+  /// Get all scans for current user
   Future<List<Map<String, dynamic>>> getScans() async {
-    // No cloud backend - return empty scans
-    return [];
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return [];
+
+      final scans = await _firestoreService.getUserScans(user.uid);
+      return scans.map((scan) => {
+        'id': scan.id,
+        'plantName': scan.plantName,
+        'confidence': scan.confidence,
+        'imageUrl': scan.imageUrl,
+        'scannedAt': scan.scannedAt.toIso8601String(),
+        'isIdentified': scan.isIdentified,
+        'candidates': scan.candidates?.map((c) => c.toMap()).toList() ?? [],
+        'additionalData': scan.additionalData,
+      }).toList();
+    } catch (e) {
+      return [];
+    }
   }
 
-  /// Delete a scan (now returns false)
+  /// Delete a scan
   Future<bool> deleteScan(String documentId) async {
-    // No cloud backend - cannot delete scan
-    return false;
+    try {
+      await _firestoreService.deleteScanResult(documentId);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
-  /// Get user's recent scans (now returns empty list)
+  /// Get user's recent scans
   Future<List<Map<String, dynamic>>> getUserScans({int limit = 20}) async {
-    // No cloud backend - return empty scans
-    return [];
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return [];
+
+      final scans = await _firestoreService.getUserScans(user.uid, limit: limit);
+      return scans.map((scan) => {
+        'id': scan.id,
+        'plantName': scan.plantName,
+        'confidence': scan.confidence,
+        'imageUrl': scan.imageUrl,
+        'scannedAt': scan.scannedAt.toIso8601String(),
+        'isIdentified': scan.isIdentified,
+        'candidates': scan.candidates?.map((c) => c.toMap()).toList() ?? [],
+        'additionalData': scan.additionalData,
+      }).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Get scan statistics for current user
+  Future<Map<String, dynamic>> getScanStats() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return {};
+
+      return await _firestoreService.getUserScanStats(user.uid);
+    } catch (e) {
+      return {};
+    }
   }
 }

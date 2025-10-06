@@ -7,6 +7,7 @@ import 'widgets/auth_wrapper.dart';
 import 'screens/settings_screen.dart';
 import 'services/theme_controller.dart';
 import 'services/auth_service.dart';
+import 'services/firestore_service.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -14,16 +15,24 @@ void main() async {
   // Preserve the splash screen until app is ready
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
   
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
-  // Initialize theme controller
-  await ThemeController.init();
-  
-  // Initialize auth service
-  await AuthService().init();
+  try {
+    // Initialize Firebase
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    
+    // Initialize Firestore
+    await FirestoreService.initialize();
+    
+    // Initialize theme controller
+    await ThemeController.init();
+    
+    // Initialize auth service
+    await AuthService().init();
+    
+  } catch (e) {
+    // Continue anyway to show error to user
+  }
   
   runApp(MyApp());
 }
