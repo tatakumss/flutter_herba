@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:typed_data';
 import '../config/app_config.dart';
 import '../services/auth_service.dart';
 
@@ -106,39 +105,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  Future<String> _uploadToAppwrite(XFile picked) async {
-    try {
-      // Read image bytes
-      final Uint8List imageBytes = await picked.readAsBytes();
-      
-      // Create unique file ID
-      final fileId = ID.unique();
-      final fileName = 'profile_${widget.userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      
-      // Upload to Appwrite Storage
-      final models.File file = await AppwriteService.storage.createFile(
-        bucketId: AppConfig.appwriteStorageBucketId,
-        fileId: fileId,
-        file: InputFile.fromBytes(
-          bytes: imageBytes,
-          filename: fileName,
-          contentType: 'image/jpeg',
-        ),
-        permissions: [
-          Permission.read(Role.user(widget.userId)),
-          Permission.write(Role.user(widget.userId)),
-        ],
-      );
-      
-      // Return the file view URL
-      return '${Environment.appwritePublicEndpoint}/storage/buckets/${AppConfig.appwriteStorageBucketId}/files/${file.$id}/view?project=${Environment.appwriteProjectId}';
-    } on AppwriteException catch (e) {
-      if (e.code == 404) {
-        throw Exception('Storage bucket "${AppConfig.appwriteStorageBucketId}" not found. Please create it in Appwrite console.');
-      }
-      throw Exception('Upload failed: ${e.message}');
-    }
-  }
+  // Appwrite storage upload method removed - no cloud storage available
 
   Future<void> _showChangePasswordDialog() async {
     final TextEditingController currentPasswordController = TextEditingController();

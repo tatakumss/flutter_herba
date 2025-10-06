@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 // Collection service removed - no longer using cloud storage
 class CollectionService {
   // Singleton pattern
@@ -17,7 +15,6 @@ class CollectionService {
   Future<bool> saveScanToCollection({
     required String plantName,
     required double confidence,
-    required Uint8List imageBytes,
     String? additionalInfo,
   }) async {
     // No cloud storage - cannot save
@@ -34,7 +31,6 @@ class CollectionService {
   Future<Map<String, dynamic>> saveScan({
     required String plantName,
     required double confidence,
-    required Uint8List imageBytes,
     String? additionalInfo,
   }) async {
     // No cloud storage - return empty result

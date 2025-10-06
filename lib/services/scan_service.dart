@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 
 // Scan service removed - no longer using cloud backend
 class ScanService {
@@ -9,10 +8,9 @@ class ScanService {
   /// Save a scan result (now returns null)
   Future<String?> saveScan({
     required String plantName,
-    required String name,
+    required double confidence,
     required bool isOod,
     required List<Map<String, dynamic>> candidates,
-    required Uint8List imageBytes,
     String? oodReason,
     double? oodScore,
   }) async {
@@ -23,10 +21,9 @@ class ScanService {
   /// Save scan result (alternative method name - now returns null)
   Future<String?> saveScanResult({
     required String plantName,
-    required String name,
+    required double confidence,
     required bool isOod,
     required List<Map<String, dynamic>> candidates,
-    required Uint8List imageBytes,
     String? oodReason,
     double? oodScore,
   }) async {

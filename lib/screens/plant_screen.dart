@@ -411,7 +411,6 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
           confidence: hardOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : score),
           isOod: hardOod,
           candidates: candidates,
-          imageBytes: _previewBytes,
           oodReason: rejReason,
           oodScore: hardOod ? oodScore : null,
         );
@@ -1109,17 +1108,18 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                       );
                       return;
                     }
+                    // Collection service no longer saves to cloud storage
                     await _collections.saveScan(
-                      name: _lastLabel,
+                      plantName: _lastLabel,
                       confidence: _lastConfidence,
-                      isOod: _lastIsOod,
-                      candidates: _lastCandidates,
-                      imageBytes: _previewBytes!,
                     );
                     if (!mounted) return;
-                    setState(() { _savedToCollection = true; });
+                    // Show message that cloud storage is not available
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Saved to your collection')),
+                      const SnackBar(
+                        content: Text('Collection saving not available - cloud backend removed'),
+                        backgroundColor: Colors.orange,
+                      ),
                     );
                   } catch (e) {
                     if (!mounted) return;

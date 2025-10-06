@@ -383,36 +383,15 @@ class _HomeScreenState extends State<HomeScreen> {
             width: double.infinity,
             height: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.grey[200],
+              color: AppConfig.primaryColor.withOpacity(0.12),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
-              Icons.eco,
-              color: AppConfig.primaryColor.withOpacity(0.3),
+              Icons.local_florist,
+              color: AppConfig.primaryColor,
               size: 32,
             ),
           ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            )
-          else
-            // Fallback when no image
-            Container(
-              width: double.infinity,
-              height: double.infinity,
-              decoration: BoxDecoration(
-                color: AppConfig.primaryColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                Icons.local_florist,
-                color: AppConfig.primaryColor,
-                size: 32,
-              ),
-            ),
           
           // Overlay with gradient and content
           Container(
