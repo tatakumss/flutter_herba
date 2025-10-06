@@ -280,6 +280,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
         _previewBytes = bytes;
         _results = [];
         _error = null;
+        _savedToCollection = false; // Reset save status for new image
       });
       if (_tflite.isInitialized) {
         await _classify(bytes);
@@ -312,6 +313,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
         _previewBytes = bytes;
         _results = [];
         _error = null;
+        _savedToCollection = false; // Reset save status for new image
       });
       await _classify(bytes);
     } catch (e) {

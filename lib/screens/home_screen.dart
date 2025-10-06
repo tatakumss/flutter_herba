@@ -5,8 +5,14 @@ import '../config/app_config.dart';
 import 'plant_screen.dart';
 import '../services/plant_library_service.dart';
 import 'plant_detail_screen.dart';
+import '../services/collection_service.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -17,53 +23,15 @@ class HomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Good Morning! 🌅",
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Discover Nature",
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: (Theme.of(context).brightness == Brightness.dark)
-                              ? const Color(0xFF81C784)
-                              : AppConfig.primaryDark,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.menu,
-                      color: AppConfig.primaryColor,
-                      size: 24,
-                    ),
-                  ),
-                ],
+              Text(
+                "Discover Nature",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: (Theme.of(context).brightness == Brightness.dark)
+                      ? const Color(0xFF81C784)
+                      : AppConfig.primaryDark,
+                ),
               ),
               const SizedBox(height: 32),
 
@@ -177,6 +145,107 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
+              // Collections Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "My Collections",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: (Theme.of(context).brightness == Brightness.dark)
+                          ? const Color(0xFF81C784)
+                          : AppConfig.primaryDark,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      // Navigate to full collections screen
+                      // You can implement this later
+                    },
+                    child: Text(
+                      "View All",
+                      style: TextStyle(
+                        color: AppConfig.primaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              FutureBuilder<List<Map<String, dynamic>>>(
+                future: CollectionService().getScans(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Container(
+                      height: 140,
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  
+                  final collections = snapshot.data ?? [];
+                  
+                  if (collections.isEmpty) {
+                    return Container(
+                      height: 140,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.grey.withOpacity(0.2),
+                          style: BorderStyle.solid,
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.collections_outlined,
+                            size: 32,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "No collections yet",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Start scanning plants to build your collection",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  
+                  return SizedBox(
+                    height: 140,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: collections.length > 5 ? 5 : collections.length, // Show max 5 items
+                      separatorBuilder: (_, __) => const SizedBox(width: 12),
+                      itemBuilder: (context, index) {
+                        final collection = collections[index];
+                        return _buildCollectionCard(context, collection);
+                      },
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+
               // Most Searched Herbal Plants
               Text(
                 "Most Searched Herbal Plants",
@@ -284,6 +353,155 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCollectionCard(BuildContext context, Map<String, dynamic> collection) {
+    final name = collection['name']?.toString() ?? 'Unknown Plant';
+    final confidence = collection['confidence'] as double? ?? 0.0;
+    final isOod = collection['isOod'] as bool? ?? false;
+    final fileID = collection['fileID']?.toString();
+    final bucketID = collection['bucketID']?.toString() ?? AppConfig.scansBucketId;
+    
+    // Build image URL for Appwrite storage
+    String? imageUrl;
+    if (fileID != null) {
+      imageUrl = '${Environment.appwritePublicEndpoint}/storage/buckets/$bucketID/files/$fileID/view?project=${Environment.appwriteProjectId}';
+      // Debug: Print the constructed URL
+      print('Collection Image URL: $imageUrl');
+    }
+    
+    return Container(
+      width: 160,
+      height: 120,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Background image
+          if (imageUrl != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                width: double.infinity,
+                height: double.infinity,
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[200],
+                      child: Icon(
+                        Icons.image_not_supported,
+                        color: Colors.grey[400],
+                        size: 32,
+                      ),
+                    );
+                  },
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      color: Colors.grey[200],
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(AppConfig.primaryColor),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            )
+          else
+            // Fallback when no image
+            Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                color: AppConfig.primaryColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                Icons.local_florist,
+                color: AppConfig.primaryColor,
+                size: 32,
+              ),
+            ),
+          
+          // Overlay with gradient and content
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withOpacity(0.7),
+                ],
+              ),
+            ),
+          ),
+          
+          // Content overlay
+          Positioned(
+            bottom: 8,
+            left: 8,
+            right: 8,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Status badge
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isOod ? Colors.orange : Colors.green,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        isOod ? 'Unknown' : '${(confidence * 100).toInt()}%',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                
+                // Plant name
+                Text(
+                  name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

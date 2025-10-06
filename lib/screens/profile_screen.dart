@@ -210,13 +210,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               
               // Menu Items
               _buildMenuItem(
-                icon: Icons.favorite_outline,
-                title: "Favorites",
-                subtitle: "Your saved plants",
-                color: const Color(0xFFE91E63),
-              ),
-              const SizedBox(height: 16),
-              _buildMenuItem(
                 icon: Icons.settings_outlined,
                 title: "Settings",
                 subtitle: "App preferences",

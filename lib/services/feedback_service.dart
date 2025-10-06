@@ -8,17 +8,16 @@ class FeedbackService {
   factory FeedbackService() => _instance;
   FeedbackService._internal();
 
-  /// Submit general feedback to Appwrite database
-  /// 
-  /// Feedback table structure:
-  /// - feedbackId (PK)
-  /// - userId 
-  /// - message
-  /// - timestamp
+
   Future<String?> submitFeedback({
     required String message,
   }) async {
     try {
+      // Validate input
+      if (message.trim().isEmpty) {
+        return null;
+      }
+
       // Get current user info
       final authService = AuthService();
       final user = authService.currentUser;
@@ -40,26 +39,24 @@ class FeedbackService {
 
       return response.$id; // Return feedback ID for potential report linking
     } catch (e) {
-      // Log error for debugging
+      // Log error for debugging (keep minimal logging for production)
       print('FeedbackService: Failed to submit feedback - $e');
       return null;
     }
   }
 
-  /// Submit error report with scan context
-  /// 
-  /// Report table structure:
-  /// - reportId (PK)
-  /// - feedbackId (FK) - optional, links to feedback if user provided general feedback
-  /// - scanId (FK) - links to the scan being reported
-  /// - message
-  /// - timestamp
+
   Future<bool> submitReport({
     required String message,
     required String scanId,
     String? feedbackId, // Optional link to feedback
   }) async {
     try {
+      // Validate input
+      if (message.trim().isEmpty || scanId.trim().isEmpty) {
+        return false;
+      }
+      
       // Prepare report document
       final reportData = <String, dynamic>{
         'scanId': scanId,
@@ -82,7 +79,7 @@ class FeedbackService {
 
       return true;
     } catch (e) {
-      // Log error for debugging
+      // Log error for debugging (keep minimal logging for production)
       print('FeedbackService: Failed to submit report - $e');
       return false;
     }
@@ -121,4 +118,5 @@ class FeedbackService {
     final feedbackId = await submitFeedback(message: message);
     return feedbackId != null;
   }
+
 }
