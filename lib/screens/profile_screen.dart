@@ -1,5 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../config/app_config.dart';
 import '../services/auth_service.dart';
@@ -82,6 +84,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
   }
+
+  // Helper method to get appropriate ImageProvider for different image types
+  ImageProvider? _getProfileImage() {
+    final photoUrl = _userProfile?.photoUrl;
+    if (photoUrl == null || photoUrl.isEmpty) return null;
+    
+    // Handle base64 data URLs
+    if (photoUrl.startsWith('data:image')) {
+      final base64String = photoUrl.split(',')[1];
+      final bytes = base64Decode(base64String);
+      return MemoryImage(bytes);
+    }
+    
+    // Handle local file paths (shouldn't happen in profile screen, but for safety)
+    if (photoUrl.startsWith('/')) {
+      return FileImage(File(photoUrl));
+    }
+    
+    // Handle network URLs (fallback)
+    return NetworkImage(photoUrl);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -181,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: CircleAvatar(
                         radius: 50,
                         backgroundColor: Colors.white,
-                        backgroundImage: _userProfile?.photoUrl != null ? NetworkImage(_userProfile!.photoUrl!) : null,
+                        backgroundImage: _getProfileImage(),
                         child: _userProfile?.photoUrl == null
                             ? Icon(
                                 Icons.person,
