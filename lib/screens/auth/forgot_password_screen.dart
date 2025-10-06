@@ -80,23 +80,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               children: [
                 const SizedBox(height: 32),
                 
-                // Logo
-                Container(
-                  height: 80,
-                  width: 80,
-                  decoration: BoxDecoration(
-                    color: AppConfig.primaryColor,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(
-                    Icons.lock_reset,
-                    color: Colors.white,
-                    size: 40,
-                  ),
-                ),
-                
-                const SizedBox(height: 32),
-                
                 // Title and description
                 Text(
                   'Forgot Password?',

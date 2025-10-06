@@ -45,12 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
             _credentialsValidated = true;
           });
           
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Credentials verified! Click "Log In" to continue.'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // Credentials validated - button will change to "Log In"
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
