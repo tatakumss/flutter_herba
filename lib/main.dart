@@ -7,7 +7,6 @@ import 'widgets/auth_wrapper.dart';
 import 'screens/settings_screen.dart';
 import 'services/theme_controller.dart';
 import 'services/auth_service.dart';
-import 'services/firestore_service.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -20,9 +19,6 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    
-    // Initialize Firestore
-    await FirestoreService.initialize();
     
     // Initialize theme controller
     await ThemeController.init();

@@ -404,13 +404,4 @@ class FirestoreService {
     }
   }
 
-  // Initialize Firestore settings (call this in main.dart)
-  static Future<void> initialize() async {
-    try {
-      // Enable offline persistence
-      await FirebaseFirestore.instance.enablePersistence();
-    } catch (e) {
-      // Persistence may already be enabled or not supported
-    }
-  }
 }

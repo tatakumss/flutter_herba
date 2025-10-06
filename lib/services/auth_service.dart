@@ -39,7 +39,6 @@ class AuthService {
   final FirestoreService _firestoreService = FirestoreService();
   final StreamController<AppwriteUser?> _authStateController = StreamController<AppwriteUser?>.broadcast();
   AppwriteUser? _currentUser;
-  bool _autoLoginEnabled = false;
 
   // Get current user
   AppwriteUser? get currentUser => _currentUser;
@@ -48,39 +47,41 @@ class AuthService {
   Stream<AppwriteUser?> get authStateChanges => _authStateController.stream;
   
   // Initialize auth service with Firebase
-  Future<void> init({bool autoLogin = false}) async {
-    _autoLoginEnabled = autoLogin;
+  Future<void> init({bool autoLogin = true}) async {
     
     // Listen to Firebase auth state changes
     _auth.authStateChanges().listen((User? user) {
-      // Only update auth state if auto-login is enabled
-      if (_autoLoginEnabled) {
-        if (user != null) {
-          _currentUser = AppwriteUser.fromFirebaseUser(user);
-        } else {
-          _currentUser = null;
-        }
-        _authStateController.add(_currentUser);
-      }
-    });
-    
-    // Set initial user state - only auto-login if explicitly requested
-    if (autoLogin) {
-      final user = _auth.currentUser;
       if (user != null) {
         _currentUser = AppwriteUser.fromFirebaseUser(user);
       } else {
         _currentUser = null;
       }
+      _authStateController.add(_currentUser);
+    });
+    
+    // Set initial user state - keep existing sessions active
+    final user = _auth.currentUser;
+    if (user != null) {
+      _currentUser = AppwriteUser.fromFirebaseUser(user);
+      
+      // Ensure user profile exists in Firestore
+      try {
+        final userExists = await _firestoreService.userExists(user.uid);
+        if (!userExists) {
+          // Create missing Firestore profile
+          final userProfile = UserProfile.fromFirebaseUser(user);
+          await _firestoreService.createOrUpdateUser(userProfile);
+        }
+      } catch (firestoreError) {
+        // Continue with login even if Firestore fails
+      }
     } else {
-      // Force logout on app start to require explicit login
-      await _auth.signOut();
       _currentUser = null;
     }
     _authStateController.add(_currentUser);
   }
   
-  // Sign in with email and password (validates credentials only)
+  // Sign in with email and password (logs user in directly)
   Future<bool> signInWithEmailAndPassword(String email, String password) async {
     try {
       // Validate inputs
@@ -88,27 +89,6 @@ class AuthService {
         throw 'Please enter both email and password.';
       }
 
-      final UserCredential result = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
-      
-      if (result.user != null) {
-        // Immediately sign out to prevent automatic login
-        await _auth.signOut();
-        return true; // Credentials are valid
-      }
-      return false;
-    } on FirebaseAuthException catch (e) {
-      throw _handleFirebaseAuthException(e);
-    } catch (e) {
-      throw 'Login failed: ${e.toString()}';
-    }
-  }
-  
-  // Actually log in the user (call this when you want to log them in)
-  Future<AppwriteUser?> loginWithEmailAndPassword(String email, String password) async {
-    try {
       final UserCredential result = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
@@ -125,14 +105,13 @@ class AuthService {
           }
         } catch (firestoreError) {
           // Continue with login even if Firestore fails
-          // This allows users to login even if Firestore is not set up yet
         }
         
         _currentUser = AppwriteUser.fromFirebaseUser(result.user!);
         _authStateController.add(_currentUser);
-        return _currentUser;
+        return true; // Login successful
       }
-      return null;
+      return false;
     } on FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthException(e);
     } catch (e) {
@@ -167,6 +146,11 @@ class AuthService {
           // Don't throw error, just log it for debugging
           // The user can still use the app with Firebase Auth only
         }
+        
+        // Sign out after registration to require manual login
+        await _auth.signOut();
+        _currentUser = null;
+        _authStateController.add(null);
       }
       
       return true;
