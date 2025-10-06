@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'config/app_config.dart';
 import 'widgets/auth_wrapper.dart';
 import 'screens/settings_screen.dart';
 import 'services/theme_controller.dart';
-import 'services/appwrite_service.dart';
+import 'services/auth_service.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -12,11 +14,16 @@ void main() async {
   // Preserve the splash screen until app is ready
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
   
-  // Initialize Appwrite
-  AppwriteService.initialize();
+  // Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   
   // Initialize theme controller
   await ThemeController.init();
+  
+  // Initialize auth service
+  await AuthService().init();
   
   runApp(MyApp());
 }

@@ -5,9 +5,6 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 import '../config/app_config.dart';
 import '../services/auth_service.dart';
-import '../services/appwrite_service.dart';
-import 'package:appwrite/appwrite.dart';
-import 'package:appwrite/models.dart' as models;
 
 class EditProfileScreen extends StatefulWidget {
   final String userId;
@@ -55,90 +52,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
-    try {
-      // Save user profile to Appwrite database
-      await AppwriteService.databases.createDocument(
-        databaseId: AppConfig.appwriteDatabaseId,
-        collectionId: 'userprofile',
-        documentId: widget.userId, // Use userId as document ID
-        data: {
-          'name': name,
-          'photoUrl': _photoUrl ?? '',
-          'userId': widget.userId,
-        },
-        permissions: [
-          Permission.read(Role.user(widget.userId)),
-          Permission.write(Role.user(widget.userId)),
-        ],
-      );
-
-      if (!mounted) return;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profile updated successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      
-      Navigator.pop(context, {
-        'name': name,
-        'photoUrl': _photoUrl,
-      });
-    } on AppwriteException catch (e) {
-      if (e.code == 409) {
-        // Document already exists, update it instead
-        try {
-          await AppwriteService.databases.updateDocument(
-            databaseId: AppConfig.appwriteDatabaseId,
-            collectionId: 'userprofile',
-            documentId: widget.userId,
-            data: {
-              'name': name,
-              'photoUrl': _photoUrl ?? '',
-            },
-          );
-
-          if (!mounted) return;
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile updated successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          
-          Navigator.pop(context, {
-            'name': name,
-            'photoUrl': _photoUrl,
-          });
-        } catch (updateError) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to update profile: $updateError'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save profile: ${e.message}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to save profile: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    // No cloud backend - show message that profile cannot be saved
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Profile saving not available - cloud backend removed'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+    
+    // Still return the data for local use
+    Navigator.pop(context, {
+      'name': name,
+      'photoUrl': _photoUrl,
+    });
   }
 
   Future<void> _pickAndUploadAvatar() async {
@@ -147,13 +73,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() { _picking = true; });
     
     try {
-      if (widget.userId.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You must be signed in to update your photo.')),
-        );
-        return;
-      }
-      
       final picker = ImagePicker();
       final picked = await picker.pickImage(
         source: ImageSource.gallery, 
@@ -162,35 +81,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
       if (picked == null) return;
       
-      setState(() => _uploading = true);
-
-      // Upload to Appwrite Storage
-      final photoUrl = await _uploadToAppwrite(picked);
-      if (!mounted) return;
-      
-      setState(() {
-        _photoUrl = photoUrl;
-        _uploading = false;
-      });
-      
+      // No cloud storage - just show message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Profile photo uploaded successfully!'),
-          backgroundColor: Colors.green,
+          content: Text('Photo upload not available - cloud backend removed'),
+          backgroundColor: Colors.orange,
         ),
       );
     } catch (e) {
       if (!mounted) return;
-      setState(() => _uploading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to upload photo: $e'),
+          content: Text('Failed to pick photo: $e'),
           backgroundColor: Colors.red,
         ),
       );
     } finally {
       if (mounted) {
-        setState(() { _picking = false; });
+        setState(() { 
+          _picking = false;
+          _uploading = false;
+        });
       }
     }
   }

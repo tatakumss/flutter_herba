@@ -361,16 +361,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final name = collection['name']?.toString() ?? 'Unknown Plant';
     final confidence = collection['confidence'] as double? ?? 0.0;
     final isOod = collection['isOod'] as bool? ?? false;
-    final fileID = collection['fileID']?.toString();
-    final bucketID = collection['bucketID']?.toString() ?? AppConfig.scansBucketId;
-    
-    // Build image URL for Appwrite storage
-    String? imageUrl;
-    if (fileID != null) {
-      imageUrl = '${Environment.appwritePublicEndpoint}/storage/buckets/$bucketID/files/$fileID/view?project=${Environment.appwriteProjectId}';
-      // Debug: Print the constructed URL
-      print('Collection Image URL: $imageUrl');
-    }
     
     return Container(
       width: 160,
@@ -388,35 +378,20 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Stack(
         children: [
-          // Background image
-          if (imageUrl != null)
-            ClipRRect(
+          // Background placeholder (no cloud storage)
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
               borderRadius: BorderRadius.circular(16),
-              child: Container(
-                width: double.infinity,
-                height: double.infinity,
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[200],
-                      child: Icon(
-                        Icons.image_not_supported,
-                        color: Colors.grey[400],
-                        size: 32,
-                      ),
-                    );
-                  },
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      color: Colors.grey[200],
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(AppConfig.primaryColor),
-                        ),
+            ),
+            child: Icon(
+              Icons.eco,
+              color: AppConfig.primaryColor.withOpacity(0.3),
+              size: 32,
+            ),
+          ),
                       ),
                     );
                   },

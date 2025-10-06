@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../services/auth_service.dart';
 import 'register_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -52,152 +53,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _forgotPassword() async {
-    final email = _emailController.text.trim();
-    
-    // If email field is empty, show dialog to enter email
-    if (email.isEmpty) {
-      _showForgotPasswordDialog();
-      return;
-    }
-
-    // If email field has value, use it directly
-    await _sendPasswordReset(email);
-  }
-
-  Future<void> _showForgotPasswordDialog() async {
-    final TextEditingController emailController = TextEditingController();
-    
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Icon(Icons.lock_reset, color: AppConfig.primaryColor),
-              const SizedBox(width: 8),
-              const Text('Reset Password'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Enter your email address and we\'ll send you a link to reset your password.',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  labelText: 'Email Address',
-                  prefixIcon: Icon(Icons.email_outlined, color: AppConfig.primaryColor),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppConfig.primaryColor),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final email = emailController.text.trim();
-                Navigator.of(context).pop();
-                await _sendPasswordReset(email);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppConfig.primaryColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text('Send Reset Link'),
-            ),
-          ],
-        );
-      },
+    // Navigate to dedicated forgot password screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ForgotPasswordScreen(),
+      ),
     );
-  }
-
-  Future<void> _sendPasswordReset(String email) async {
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your email address'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid email address'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    try {
-      await _authService.sendPasswordRecovery(email);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Password reset email sent to $email'),
-              const SizedBox(height: 4),
-              Text(
-                'Check your email and follow the instructions to reset your password.',
-                style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.9)),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 6),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (e) {
-      String errorMessage = e.toString();
-      
-      // Provide more user-friendly error messages
-      if (errorMessage.contains('user_not_found') || errorMessage.contains('404')) {
-        errorMessage = 'No account found with this email address.';
-      } else if (errorMessage.contains('too_many_requests') || errorMessage.contains('429')) {
-        errorMessage = 'Too many requests. Please wait a few minutes before trying again.';
-      } else if (errorMessage.contains('network') || errorMessage.contains('connection')) {
-        errorMessage = 'Network error. Please check your internet connection.';
-      }
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
   }
 
   @override
