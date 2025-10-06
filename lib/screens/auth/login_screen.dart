@@ -287,6 +287,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                      ),
                     ),
                     
                     const SizedBox(height: 32),
@@ -308,7 +309,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: _isLoading
                             ? const CircularProgressIndicator(color: Colors.white)
                             : Text(
-                                _validatedUser != null ? "Log In" : "Sign In",
+                                _credentialsValidated ? "Log In" : "Sign In",
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w600,
