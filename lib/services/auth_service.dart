@@ -37,6 +37,7 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final StreamController<AppwriteUser?> _authStateController = StreamController<AppwriteUser?>.broadcast();
   AppwriteUser? _currentUser;
+  bool _autoLoginEnabled = false;
 
   // Get current user
   AppwriteUser? get currentUser => _currentUser;
@@ -45,29 +46,61 @@ class AuthService {
   Stream<AppwriteUser?> get authStateChanges => _authStateController.stream;
   
   // Initialize auth service with Firebase
-  Future<void> init() async {
+  Future<void> init({bool autoLogin = false}) async {
+    _autoLoginEnabled = autoLogin;
+    
     // Listen to Firebase auth state changes
     _auth.authStateChanges().listen((User? user) {
+      // Only update auth state if auto-login is enabled
+      if (_autoLoginEnabled) {
+        if (user != null) {
+          _currentUser = AppwriteUser.fromFirebaseUser(user);
+        } else {
+          _currentUser = null;
+        }
+        _authStateController.add(_currentUser);
+      }
+    });
+    
+    // Set initial user state - only auto-login if explicitly requested
+    if (autoLogin) {
+      final user = _auth.currentUser;
       if (user != null) {
         _currentUser = AppwriteUser.fromFirebaseUser(user);
       } else {
         _currentUser = null;
       }
-      _authStateController.add(_currentUser);
-    });
-    
-    // Set initial user state
-    final user = _auth.currentUser;
-    if (user != null) {
-      _currentUser = AppwriteUser.fromFirebaseUser(user);
     } else {
+      // Force logout on app start to require explicit login
+      await _auth.signOut();
       _currentUser = null;
     }
     _authStateController.add(_currentUser);
   }
   
-  // Sign in with email and password
-  Future<AppwriteUser?> signInWithEmailAndPassword(String email, String password) async {
+  // Sign in with email and password (validates credentials only)
+  Future<bool> signInWithEmailAndPassword(String email, String password) async {
+    try {
+      final UserCredential result = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      
+      if (result.user != null) {
+        // Immediately sign out to prevent automatic login
+        await _auth.signOut();
+        return true; // Credentials are valid
+      }
+      return false;
+    } on FirebaseAuthException catch (e) {
+      throw _handleFirebaseAuthException(e);
+    } catch (e) {
+      throw 'An unexpected error occurred. Please try again.';
+    }
+  }
+  
+  // Actually log in the user (call this when you want to log them in)
+  Future<AppwriteUser?> loginWithEmailAndPassword(String email, String password) async {
     try {
       final UserCredential result = await _auth.signInWithEmailAndPassword(
         email: email.trim(),

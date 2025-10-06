@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _credentialsValidated = false;
 
   @override
   void dispose() {
@@ -33,14 +34,55 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
-        await _authService.signInWithEmailAndPassword(
+        final isValid = await _authService.signInWithEmailAndPassword(
           _emailController.text.trim(),
           _passwordController.text,
         );
+        
+        if (isValid) {
+          // Store validated state and show success message
+          setState(() {
+            _credentialsValidated = true;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Credentials verified! Click "Log In" to continue.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loginUser() async {
+    if (_credentialsValidated) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        await _authService.loginWithEmailAndPassword(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+        // Navigation will be handled by AuthWrapper automatically
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Login failed: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -245,19 +287,18 @@ class _LoginScreenState extends State<LoginScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ),
                     ),
                     
                     const SizedBox(height: 32),
                     
-                    // Sign In Button
+                    // Sign In / Log In Button
                     SizedBox(
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: _isLoading ? null : _signIn,
+                        onPressed: _isLoading ? null : (_credentialsValidated ? _loginUser : _signIn),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppConfig.primaryColor,
+                          backgroundColor: _credentialsValidated ? Colors.green : AppConfig.primaryColor,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -266,9 +307,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         child: _isLoading
                             ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text(
-                                "Sign In",
-                                style: TextStyle(
+                            : Text(
+                                _validatedUser != null ? "Log In" : "Sign In",
+                                style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w600,
                                 ),
