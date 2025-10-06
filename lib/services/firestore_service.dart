@@ -436,4 +436,25 @@ class FirestoreService {
     }
   }
 
+  // Test feedback functionality
+  Future<bool> testFeedbackConnection() async {
+    try {
+      // Test if we can access the feedback subcollection
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) return false;
+
+      final feedbackRef = _firestore
+          .collection(_usersCollection)
+          .doc(userId)
+          .collection('feedback');
+
+      // Try to read the collection (this will create it if it doesn't exist)
+      await feedbackRef.limit(1).get();
+      
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
 }

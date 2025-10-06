@@ -299,7 +299,9 @@ class AuthService {
       if (displayName != null) {
         await _auth.currentUser?.updateDisplayName(displayName);
       }
-      if (photoUrl != null) {
+      // Skip Firebase Auth photoURL update for base64 images (too long)
+      // Base64 images will only be stored in Firestore
+      if (photoUrl != null && !photoUrl.startsWith('data:image')) {
         await _auth.currentUser?.updatePhotoURL(photoUrl);
       }
 

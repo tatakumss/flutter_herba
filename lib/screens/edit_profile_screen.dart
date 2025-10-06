@@ -1,11 +1,11 @@
 // ignore_for_file: deprecated_member_use, use_build_context_synchronously
 
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../config/app_config.dart';
 import '../services/auth_service.dart';
-import '../services/image_storage_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String userId;
@@ -26,7 +26,6 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameController;
   final AuthService _authService = AuthService();
-  final ImageStorageService _imageStorage = ImageStorageService();
   String? _photoUrl;
   File? _selectedImage;
   bool _uploading = false;
@@ -36,6 +35,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.initialName ?? '');
+    // Initialize with existing photo (can be base64 data URL from Firestore)
     _photoUrl = widget.initialPhotoUrl;
   }
 
@@ -62,12 +62,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       String? finalPhotoUrl = _photoUrl;
 
-      // Upload new image if selected
-      if (_selectedImage != null) {
-        finalPhotoUrl = await _imageStorage.uploadProfileImage(_selectedImage!);
-        if (finalPhotoUrl == null) {
-          throw Exception('Failed to upload profile image');
-        }
+      // For Firestore-only: photo is already base64 encoded
+      // No need for Firebase Storage upload
+      if (_selectedImage != null && _photoUrl != null && _photoUrl!.startsWith('data:image')) {
+        // Photo is already in base64 format, ready for Firestore
+        finalPhotoUrl = _photoUrl;
       }
 
       // Update profile in Firestore via AuthService
@@ -116,15 +115,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final picker = ImagePicker();
       final picked = await picker.pickImage(
         source: ImageSource.gallery, 
-        maxWidth: 1024, 
-        imageQuality: 85
+        maxWidth: 512,  // Smaller for Firestore storage
+        maxHeight: 512, // Square aspect ratio
+        imageQuality: 70  // Lower quality for smaller base64 size
       );
       if (picked == null) return;
       
-      // Set selected image for upload later
+      // Convert image to base64
+      final bytes = await picked.readAsBytes();
+      final base64Image = base64Encode(bytes);
+      
+      // Store base64 data instead of file
       setState(() {
-        _selectedImage = File(picked.path);
-        _photoUrl = picked.path; // Show local path temporarily
+        _selectedImage = File(picked.path);  // For local preview
+        _photoUrl = 'data:image/jpeg;base64,$base64Image';  // Base64 data URL
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -145,7 +149,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (mounted) {
         setState(() { 
           _picking = false;
-          _uploading = false;
         });
       }
     }
@@ -388,6 +391,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  // Helper method to get appropriate ImageProvider for different image types
+  ImageProvider? _getProfileImage() {
+    if (_photoUrl == null || _photoUrl!.isEmpty) return null;
+    
+    // Handle base64 data URLs
+    if (_photoUrl!.startsWith('data:image')) {
+      final base64String = _photoUrl!.split(',')[1];
+      final bytes = base64Decode(base64String);
+      return MemoryImage(bytes);
+    }
+    
+    // Handle local file paths (during selection)
+    if (_photoUrl!.startsWith('/')) {
+      return FileImage(File(_photoUrl!));
+    }
+    
+    // Handle network URLs (fallback)
+    return NetworkImage(_photoUrl!);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -406,9 +429,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   CircleAvatar(
                     radius: 48,
                     backgroundColor: Colors.grey.shade200,
-                    backgroundImage: _photoUrl != null && _photoUrl!.isNotEmpty 
-                        ? NetworkImage(_photoUrl!) 
-                        : null,
+                    backgroundImage: _getProfileImage(),
                     child: _photoUrl == null || _photoUrl!.isEmpty
                         ? const Icon(Icons.person, size: 48, color: Colors.grey)
                         : null,

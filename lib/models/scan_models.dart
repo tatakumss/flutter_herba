@@ -180,3 +180,87 @@ class CollectionItem {
     );
   }
 }
+
+// Feedback item model for Firestore
+class FeedbackItem {
+  final String id;
+  final String userId;
+  final String type; // 'error' or 'suggestion'
+  final String message;
+  final DateTime timestamp;
+  final String status; // 'pending', 'reviewed', 'resolved'
+  final Map<String, dynamic>? scanContext;
+  final String? scanId; // Reference to scan if this is an error report
+
+  FeedbackItem({
+    required this.id,
+    required this.userId,
+    required this.type,
+    required this.message,
+    required this.timestamp,
+    this.status = 'pending',
+    this.scanContext,
+    this.scanId,
+  });
+
+  // Convert to Firestore document
+  Map<String, dynamic> toFirestore() {
+    return {
+      'id': id,
+      'userId': userId,
+      'type': type,
+      'message': message,
+      'timestamp': Timestamp.fromDate(timestamp),
+      'status': status,
+      'scanContext': scanContext ?? {},
+      'scanId': scanId,
+    };
+  }
+
+  // Create from Firestore document
+  factory FeedbackItem.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return FeedbackItem(
+      id: doc.id,
+      userId: data['userId'] ?? '',
+      type: data['type'] ?? 'suggestion',
+      message: data['message'] ?? '',
+      timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      status: data['status'] ?? 'pending',
+      scanContext: data['scanContext'] as Map<String, dynamic>?,
+      scanId: data['scanId'],
+    );
+  }
+
+  // Create error report with scan context
+  factory FeedbackItem.createErrorReport({
+    required String userId,
+    required String message,
+    required String scanId,
+    required Map<String, dynamic> scanContext,
+  }) {
+    return FeedbackItem(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      userId: userId,
+      type: 'error',
+      message: message,
+      timestamp: DateTime.now(),
+      scanContext: scanContext,
+      scanId: scanId,
+    );
+  }
+
+  // Create improvement suggestion
+  factory FeedbackItem.createSuggestion({
+    required String userId,
+    required String message,
+  }) {
+    return FeedbackItem(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      userId: userId,
+      type: 'suggestion',
+      message: message,
+      timestamp: DateTime.now(),
+    );
+  }
+}

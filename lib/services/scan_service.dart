@@ -74,6 +74,8 @@ class ScanService {
       
       return scanId;
     } catch (e) {
+      // Log the error for debugging
+      print('Error saving scan: $e');
       return null;
     }
   }

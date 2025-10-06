@@ -892,6 +892,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
           candidates: candidates,
           oodReason: rejReason,
           oodScore: hardOod ? oodScore : null,
+          imageBytes: _previewBytes, // Include the image data
         );
         
         // Also save to local history for backward compatibility
@@ -1398,11 +1399,29 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                           try {
                             bool success;
                             if (type == 'error') {
+                              // Create scan context for error reports
+                              final scanContext = {
+                                'plantName': _lastLabel,
+                                'confidence': _lastConfidence,
+                                'isOod': _lastIsOod,
+                                'candidates': _lastCandidates.map((c) => {
+                                  'name': c['label'] ?? '',
+                                  'confidence': c['confidence'] ?? 0.0,
+                                }).toList(),
+                                'oodReason': _oodReason,
+                                'oodScore': _oodScore,
+                                'skinRatio': _skinRatio,
+                                'edgeDensity': _edgeDensity,
+                                'greenRatio': _greenRatio,
+                                'timestamp': DateTime.now().toIso8601String(),
+                              };
+
                               // For error reports, we need a scan ID
                               if (_currentScanId != null) {
                                 success = await _feedback.submitErrorReportWithScan(
                                   message: message,
                                   scanId: _currentScanId!,
+                                  scanContext: scanContext,
                                 );
                               } else {
                                 // Fallback: create scan first, then report
@@ -1413,11 +1432,13 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                                   candidates: _lastCandidates,
                                   oodReason: _oodReason,
                                   oodScore: _oodScore,
+                                  imageBytes: _previewBytes, // Include the image data
                                 );
                                 if (scanId != null) {
                                   success = await _feedback.submitErrorReportWithScan(
                                     message: message,
                                     scanId: scanId,
+                                    scanContext: scanContext,
                                   );
                                 } else {
                                   success = false;
