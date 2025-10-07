@@ -10,28 +10,36 @@ class CollectionService {
 
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  
 
   /// Get user's collections
   Future<List<Map<String, dynamic>>> getCollections() async {
     try {
       final user = _auth.currentUser;
-      if (user == null) return [];
+      if (user == null) {
+        // Return empty list when no user is logged in
+        return [];
+      }
 
       final collections = await _firestoreService.getUserCollection(user.uid);
+      
       return collections.map((item) => {
         'id': item.id,
         'plantName': item.plantName,
         'imageUrl': item.imageUrl,
         'imageData': item.imageData,
+        'scanDate': item.addedAt.toIso8601String(),
         'addedAt': item.addedAt.toIso8601String(),
         'notes': item.notes,
         'plantInfo': item.plantInfo,
         'isFavorite': item.isFavorite,
       }).toList();
     } catch (e) {
+      // Return empty list when Firestore fails
       return [];
     }
   }
+
 
   /// Add to collection
   Future<bool> addToCollection(Map<String, dynamic> plantData) async {
@@ -130,6 +138,18 @@ class CollectionService {
 
       await _firestoreService.updateCollectionItem(updatedItem);
       return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Delete collection item (alias for removeFromCollection)
+  Future<bool> deleteCollection(Map<String, dynamic> collection) async {
+    try {
+      final itemId = collection['id'] as String?;
+      if (itemId == null) return false;
+      
+      return await removeFromCollection(itemId);
     } catch (e) {
       return false;
     }

@@ -1,9 +1,9 @@
 
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firestore_service.dart';
-import 'image_storage_service.dart';
 import '../models/scan_models.dart';
 
 // Enhanced scan service with Firestore integration
@@ -13,7 +13,6 @@ class ScanService {
   ScanService._internal();
 
   final FirestoreService _firestoreService = FirestoreService();
-  final ImageStorageService _imageStorage = ImageStorageService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// Save a scan result with image to Firestore
@@ -36,12 +35,13 @@ class ScanService {
       // Create scan result
       final scanId = DateTime.now().millisecondsSinceEpoch.toString();
       
-      // Upload image if provided
-      String? imageUrl;
+      // Convert image to base64 if provided
+      String? imageData;
       if (imageFile != null) {
-        imageUrl = await _imageStorage.uploadScanImage(imageFile, scanId);
+        final bytes = await imageFile.readAsBytes();
+        imageData = 'data:image/jpeg;base64,${base64Encode(bytes)}';
       } else if (imageBytes != null) {
-        imageUrl = await _imageStorage.uploadScanImageFromBytes(imageBytes, scanId);
+        imageData = 'data:image/jpeg;base64,${base64Encode(imageBytes)}';
       }
 
       // Convert candidates to PlantCandidate objects
@@ -58,7 +58,7 @@ class ScanService {
         userId: user.uid,
         plantName: plantName,
         confidence: confidence,
-        imageUrl: imageUrl,
+        imageUrl: imageData, // Store base64 data instead of URL
         scannedAt: DateTime.now(),
         additionalData: {
           'isOod': isOod,

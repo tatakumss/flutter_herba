@@ -16,6 +16,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -181,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
               FutureBuilder<List<Map<String, dynamic>>>(
-                future: CollectionService().getScans(),
+                future: CollectionService().getCollections(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Container(
@@ -372,111 +373,412 @@ class _HomeScreenState extends State<HomeScreen> {
     final confidence = (info['confidence'] is num) ? (info['confidence'] as num).toDouble() : 0.0;
     final isOod = (info['isOod'] as bool?) ?? false;
     
-    return Container(
-      width: 160,
-      height: 120,
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // Background: show imageUrl, else base64 imageData, else placeholder
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: () {
-              final url = collection['imageUrl'] as String?;
-              final data = collection['imageData'] as String?;
-              if (url != null && url.isNotEmpty) {
-                return Image.network(url, fit: BoxFit.cover, width: double.infinity, height: double.infinity);
-              } else if (data != null && data.isNotEmpty) {
-                try {
-                  final bytes = base64Decode(data);
-                  return Image.memory(bytes, fit: BoxFit.cover, width: double.infinity, height: double.infinity);
-                } catch (_) {
-                  // fall back to placeholder
-                }
-              }
-              return Container(
-                width: double.infinity,
-                height: double.infinity,
-                color: AppConfig.primaryColor.withValues(alpha: 0.12),
-                child: Icon(Icons.local_florist, color: AppConfig.primaryColor, size: 32),
-              );
-            }(),
-          ),
-          
-          // Overlay with gradient and content
-          Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: BoxDecoration(
+    return InkWell(
+      onTap: () => _showCollectionDetail(context, collection),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 160,
+        height: 120,
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Background: show imageUrl, else base64 imageData, else placeholder
+            ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withValues(alpha: 0.7),
+              child: () {
+                final url = collection['imageUrl'] as String?;
+                final data = collection['imageData'] as String?;
+                if (url != null && url.isNotEmpty) {
+                  return Image.network(
+                    url, 
+                    key: ValueKey('${collection['id']}_${url.hashCode}'),
+                    fit: BoxFit.cover, 
+                    width: double.infinity, 
+                    height: double.infinity
+                  );
+                } else if (data != null && data.isNotEmpty) {
+                  try {
+                    final bytes = base64Decode(data);
+                    return Image.memory(
+                      bytes, 
+                      key: ValueKey('${collection['id']}_${data.hashCode}'),
+                      fit: BoxFit.cover, 
+                      width: double.infinity, 
+                      height: double.infinity
+                    );
+                  } catch (_) {
+                    // fall back to placeholder
+                  }
+                }
+                return Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  color: AppConfig.primaryColor.withValues(alpha: 0.12),
+                  child: Icon(Icons.local_florist, color: AppConfig.primaryColor, size: 32),
+                );
+              }(),
+            ),
+            
+            // Overlay with gradient and content
+            Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.7),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Content overlay
+            Positioned(
+              bottom: 8,
+              left: 8,
+              right: 8,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Status badge
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isOod ? Colors.orange : Colors.green,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          isOod ? 'Unknown' : '${(confidence * 100).toInt()}%',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  
+                  // Plant name
+                  Text(
+                    name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
                 ],
               ),
             ),
-          ),
-          
-          // Content overlay
-          Positioned(
-            bottom: 8,
-            left: 8,
-            right: 8,
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCollectionDetail(BuildContext context, Map<String, dynamic> collection) {
+    final info = (collection['plantInfo'] as Map<String, dynamic>?) ?? {};
+    final name = (collection['plantName']?.toString() ?? 'Unknown').trim().isNotEmpty
+        ? collection['plantName'].toString()
+        : 'Unknown';
+    final confidence = (info['confidence'] is num) ? (info['confidence'] as num).toDouble() : 0.0;
+    final isOod = (info['isOod'] as bool?) ?? false;
+    final scanDate = collection['scanDate'] as String? ?? 'Unknown date';
+    final candidates = (info['candidates'] as List?) ?? [];
+    
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            height: MediaQuery.of(context).size.height * 0.8,
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
-                // Status badge
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isOod ? Colors.orange : Colors.green,
-                        borderRadius: BorderRadius.circular(8),
+                // Header with back and delete buttons
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppConfig.primaryColor,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
                       ),
-                      child: Text(
-                        isOod ? 'Unknown' : '${(confidence * 100).toInt()}%',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                      Expanded(
+                        child: Text(
+                          'Collection Details',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
-                    ),
-                  ],
+                      IconButton(
+                        onPressed: () => _removeFromCollection(context, collection),
+                        icon: const Icon(Icons.remove_circle, color: Colors.white),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 4),
                 
-                // Plant name
-                Text(
-                  name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                // Content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Image
+                        Container(
+                          width: double.infinity,
+                          height: 250,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: () {
+                              final url = collection['imageUrl'] as String?;
+                              final data = collection['imageData'] as String?;
+                              if (url != null && url.isNotEmpty) {
+                                return Image.network(url, fit: BoxFit.cover);
+                              } else if (data != null && data.isNotEmpty) {
+                                try {
+                                  final bytes = base64Decode(data);
+                                  return Image.memory(bytes, fit: BoxFit.cover);
+                                } catch (_) {
+                                  // fall back to placeholder
+                                }
+                              }
+                              return Container(
+                                color: AppConfig.primaryColor.withValues(alpha: 0.12),
+                                child: Icon(Icons.local_florist, color: AppConfig.primaryColor, size: 64),
+                              );
+                            }(),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        // Plant name and status
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                name,
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).textTheme.titleLarge?.color,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isOod ? Colors.orange : Colors.green,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                isOod ? 'Unknown Plant' : '${(confidence * 100).toInt()}% Confidence',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Scan date
+                        _buildInfoRow('Scan Date', scanDate),
+                        const SizedBox(height: 12),
+                        
+                        // Confidence details
+                        if (!isOod) ...[
+                          _buildInfoRow('Confidence Level', '${(confidence * 100).toStringAsFixed(1)}%'),
+                          const SizedBox(height: 12),
+                        ],
+                        
+                        // Other candidates
+                        if (candidates.isNotEmpty) ...[
+                          Text(
+                            'Other Possible Matches',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).textTheme.titleMedium?.color,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ...candidates.take(3).map((candidate) {
+                            final candidateName = candidate['name'] ?? 'Unknown';
+                            final candidateConfidence = (candidate['confidence'] as num?)?.toDouble() ?? 0.0;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      candidateName,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '${(candidateConfidence * 100).toInt()}%',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[600],
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _removeFromCollection(BuildContext context, Map<String, dynamic> collection) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Remove from Collection'),
+          content: Text('Remove "${collection['plantName'] ?? 'this item'}" from your collection?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop(); // Close confirmation dialog
+                Navigator.of(context).pop(); // Close detail dialog
+                
+                try {
+                  // Call collection service to remove from collection
+                  final success = await CollectionService().deleteCollection(collection);
+                  
+                  if (!success) {
+                    throw Exception('Failed to remove item');
+                  }
+                  
+                  // Show success message
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Removed from collection'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    // Clear image cache and refresh the collections list
+                    imageCache.clear();
+                    setState(() {});
+                  }
+                } catch (e) {
+                  // Show error message
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to remove from collection: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.orange),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -499,7 +801,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.85),
                 height: 1.35,
               ),
-            ),
+              ),
           ),
         ],
       ),
