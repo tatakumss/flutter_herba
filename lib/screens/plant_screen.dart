@@ -801,7 +801,6 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
           _greenRatio = (pick['greenRatio'] as num?)?.toDouble();
           _oodConf = calibratedConf;
           _oodScore = oodScore;
-          debugPrint('[OOD] combo: A={is:$isA, score:$scoreA, reason:$rA} B={is:$isB, score:$scoreB, reason:$rB} -> is:$isOod reason:$rejReason conf=${calibratedConf.toStringAsFixed(3)} ood=${oodScore.toStringAsFixed(3)}');
         } else if (probs.isNotEmpty && emb.isNotEmpty) {
           final ev = _ood.evaluate(resizedRgb224: resized, probs: probs, embedding: emb);
           isOod = (ev['isOOD'] == true);
@@ -817,10 +816,6 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
           _skinRatio = skinRatio;
           _edgeDensity = edgeDensity;
           _greenRatio = greenRatio;
-          debugPrint('[OOD] reason=${rejReason ?? 'null'} conf=${calibratedConf.toStringAsFixed(3)} ood=${oodScore.toStringAsFixed(3)}'
-              '${skinRatio != null ? ' skin=${skinRatio.toStringAsFixed(3)}' : ''}'
-              '${edgeDensity != null ? ' edge=${edgeDensity.toStringAsFixed(3)}' : ''}'
-              '${greenRatio != null ? ' green=${greenRatio.toStringAsFixed(3)}' : ''}');
         }
         // Heuristic: flat/glossy green objects (e.g., appliances) often have
         // high green ratio but very low edge density and no skin. If OOD didn't
@@ -843,7 +838,6 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
             calibratedConf = math.min(calibratedConf, 0.20);
             _oodScore = oodScore;
             _oodConf = calibratedConf;
-            debugPrint('[OOD] heuristic NON_PLANT_VISUAL applied g=${g.toStringAsFixed(3)} e=${e.toStringAsFixed(3)} s=${s.toStringAsFixed(3)} top=$topLabel');
           }
         }
       }
