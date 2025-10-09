@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/material.dart';
 
+enum PlantDataset { mini, kaggle }
+
 class PlantItem {
   final String name;
   final String category;
@@ -40,14 +42,20 @@ class PlantItem {
 }
 
 class PlantLibraryService {
-  Future<List<PlantItem>> load() async {
-    final raw = await rootBundle.loadString('assets/plants.json');
-    final decoded = json.decode(raw);
-
-    // Prefer building from AssetManifest if mini_dataset assets are present.
-    final manifestItems = await _tryLoadFromAssetManifest();
+  Future<List<PlantItem>> load({PlantDataset source = PlantDataset.mini}) async {
+    // Prefer building from AssetManifest for requested dataset if assets are present.
+    final manifestItems = await _tryLoadFromAssetManifest(source: source);
     if (manifestItems != null && manifestItems.isNotEmpty) {
       return manifestItems;
+    }
+
+    // Optionally fallback to plants.json if it exists
+    dynamic decoded;
+    try {
+      final raw = await rootBundle.loadString('assets/plants.json');
+      decoded = json.decode(raw);
+    } catch (_) {
+      decoded = null;
     }
 
     // Case 1: original schema: List<Map<String,dynamic>>
@@ -107,19 +115,63 @@ class PlantLibraryService {
     return const <PlantItem>[];
   }
 
-  Future<List<PlantItem>?> _tryLoadFromAssetManifest() async {
+  Future<List<PlantItem>?> _tryLoadFromAssetManifest({PlantDataset source = PlantDataset.mini}) async {
     try {
       final manifestRaw = await rootBundle.loadString('AssetManifest.json');
       final Map<String, dynamic> manifest = (json.decode(manifestRaw) as Map).cast<String, dynamic>();
-      final keys = manifest.keys.where((k) => k.startsWith('assets/images/mini_dataset/')).toList();
+      final String prefix = source == PlantDataset.kaggle
+          ? 'assets/images/kaggle_dataset/'
+          : 'assets/images/mini_dataset/';
+      final keys = manifest.keys.where((k) => k.startsWith(prefix)).toList();
       if (keys.isEmpty) return null;
 
-      // Optional metadata
+      // Optional metadata: base + dataset-specific override (kaggle)
       Map<String, dynamic> meta = const {};
       try {
         final metaRaw = await rootBundle.loadString('assets/plant_metadata.json');
         meta = (json.decode(metaRaw) as Map).cast<String, dynamic>();
       } catch (_) {}
+      if (source == PlantDataset.kaggle) {
+        try {
+          final kRaw = await rootBundle.loadString('assets/kaggle_metadata.json');
+          final Map<String, dynamic> kMeta = (json.decode(kRaw) as Map).cast<String, dynamic>();
+          // merge override: kaggle entries overwrite base entries
+          meta = {...meta, ...kMeta};
+        } catch (_) {}
+      }
+
+      // Build a normalized lookup to better match kaggle class folder names
+      String normKey(String s) => s
+          .toLowerCase()
+          .replaceAll('_', ' ')
+          .replaceAll('-', ' ')
+          .replaceAll('(', ' ')
+          .replaceAll(')', ' ')
+          .replaceAll(RegExp(r"[^a-z0-9 ]"), '')
+          .replaceAll(RegExp(r"\s+"), ' ')
+          .replaceAll(' ', '') // remove spaces so "aloe vera" == "aloevera"
+          .trim();
+      final Map<String, Map<String, dynamic>> metaNorm = {};
+      final Map<String, String> metaKeyByNorm = {};
+      for (final entry in meta.entries) {
+        final k = normKey(entry.key);
+        metaNorm[k] = (entry.value as Map).cast<String, dynamic>();
+        metaKeyByNorm[k] = entry.key; // preserve canonical display key (e.g., "Aloe Vera")
+      }
+
+      // Aliases to fix common dataset naming mismatches
+      final Map<String, String> alias = {
+        'alovera': 'aloevera',
+        'aloevera': 'aloevera',
+        'chilly': 'chili',
+        'pomoegranate': 'pomegranate',
+      };
+
+      String prettifyName(String s) {
+        // Replace underscores and normalize spacing, then Title Case
+        final cleaned = s.replaceAll('_', ' ').replaceAll(RegExp(r"\s+"), ' ').trim();
+        return cleaned.split(' ').map((w) => w.isEmpty ? w : (w[0].toUpperCase() + (w.length > 1 ? w.substring(1).toLowerCase() : ''))).join(' ');
+      }
 
       Color colorFor(String name) {
         final h = name.codeUnits.fold<int>(0, (a, b) => (a * 131 + b) & 0xFFFFFFFF);
@@ -129,23 +181,35 @@ class PlantLibraryService {
         return Color(0xFF000000 | (r << 16) | (g << 8) | b);
       }
 
-      // Group assets by class folder: assets/images/mini_dataset/<Class>/...
+      // Group assets by class folder: assets/images/{dataset}/<Class>/...
       final Map<String, List<String>> grouped = {};
       for (final path in keys) {
         final parts = path.split('/');
-        if (parts.length < 5) continue; // assets / images / mini_dataset / <Class> / <file>
+        if (parts.length < 5) continue; // assets / images / {dataset} / <Class> / <file>
         final className = parts[3]; // index 3 is the <Class>
+        // Skip non_herbal bucket if present
+        if (className.toLowerCase() == 'non_herbal') continue;
         grouped.putIfAbsent(className, () => []).add(path);
       }
 
       final items = <PlantItem>[];
       grouped.forEach((name, paths) {
-        final metaEntry = meta[name] as Map?;
+        String key = normKey(name);
+        key = alias[key] ?? key;
+        final metaEntry = meta[key] is Map ? (meta[key] as Map?) : metaNorm[key];
         final desc = metaEntry == null ? ' ' : (metaEntry['description'] ?? ' ').toString();
         final uses = ((metaEntry?['uses'] as List?) ?? const []).map((e) => e.toString()).toList();
+        assert(() {
+          if (metaEntry == null) {
+            // ignore: avoid_print
+            print('[LibraryDebug] No metadata for class: $name (norm: $key)');
+          }
+          return true;
+        }());
+        final displayName = metaKeyByNorm[key] ?? prettifyName(name);
         items.add(PlantItem(
-          name: name,
-          category: 'Herb',
+          name: displayName,
+          category: '', // omit category label in UI
           description: desc,
           uses: uses,
           tags: const [],

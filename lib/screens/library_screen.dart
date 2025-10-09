@@ -18,8 +18,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final _service = PlantLibraryService();
   List<PlantItem> _all = [];
   String _query = '';
-  String _selectedCategory = 'Herb';
   bool _loading = true;
+  PlantDataset _dataset = PlantDataset.mini; // Mendeley (mini_dataset) by default
 
   @override
   void initState() {
@@ -28,7 +28,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _load() async {
-    final items = await _service.load();
+    final items = await _service.load(source: _dataset);
     if (!mounted) return;
     setState(() {
       _all = items;
@@ -73,7 +73,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
-  List<PlantItem> get _filtered => _service.search(_all, _query, category: _selectedCategory);
+  List<PlantItem> get _filtered => _service.search(_all, _query);
 
   @override
   Widget build(BuildContext context) {
@@ -140,16 +140,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
             ),
             
-            // Categories
+            // Dataset toggle only (no category chip)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildCategoryChip('Herb', _selectedCategory == 'Herb'),
-                  ],
-                ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _buildDatasetToggle(),
               ),
             ),
             const SizedBox(height: 20),
@@ -182,34 +178,51 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  Widget _buildCategoryChip(String label, bool isSelected) {
+  // Category chip removed; no category filtering now.
+
+  Widget _buildDatasetToggle() {
+    return Row(
+      children: [
+        _buildDatasetChip('Mendeley', _dataset == PlantDataset.mini, PlantDataset.mini),
+        const SizedBox(width: 8),
+        _buildDatasetChip('Kaggle', _dataset == PlantDataset.kaggle, PlantDataset.kaggle),
+        const SizedBox(width: 12),
+      ],
+    );
+  }
+
+  Widget _buildDatasetChip(String label, bool isSelected, PlantDataset value) {
     return Container(
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      margin: const EdgeInsets.only(right: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: isSelected ? AppConfig.primaryColor : Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 10,
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: () => setState(() => _selectedCategory = label == 'All' ? '' : label),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-          child: Text(
-  label,
-  style: TextStyle(
-    color: isSelected ? Colors.white : AppConfig.primaryColor,
-    fontWeight: FontWeight.w600,
-    fontSize: 14,
-  ),
-),
+        borderRadius: BorderRadius.circular(18),
+        onTap: () async {
+          if (_dataset == value) return;
+          setState(() {
+            _dataset = value;
+            _loading = true;
+          });
+          await _load();
+        },
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : AppConfig.primaryColor,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
         ),
       ),
     );
@@ -218,7 +231,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget _buildPlantCard(PlantItem plant, BuildContext context) {
     return InkWell(
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => PlantDetailScreen(plant: plant)),
+        MaterialPageRoute(builder: (_) => PlantDetailScreen(plant: plant, dataset: _dataset)),
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -312,15 +325,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          plant.category,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.75),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        const SizedBox.shrink(),
                       ],
                     ),
                     const SizedBox(height: 8),

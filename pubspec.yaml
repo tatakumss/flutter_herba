@@ -76,8 +76,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/models/
-    - assets/plants.json
     - assets/plant_metadata.json
+    - assets/kaggle_metadata.json
     - assets/images/
     - assets/images/mini_dataset/
     - assets/images/mini_dataset/Akapulko/
@@ -119,6 +119,88 @@ flutter:
     - assets/images/mini_dataset/Tuba-Tuba/
     - assets/images/mini_dataset/Turmeric/
     - assets/images/mini_dataset/Ulasimang Bato/
+    - assets/images/kaggle_dataset/
+    - assets/images/kaggle_dataset/Aloevera/
+    - assets/images/kaggle_dataset/Amla/
+    - assets/images/kaggle_dataset/Amruthaballi/
+    - assets/images/kaggle_dataset/Arali/
+    - assets/images/kaggle_dataset/Astma_weed/
+    - assets/images/kaggle_dataset/Badipala/
+    - assets/images/kaggle_dataset/Balloon_Vine/
+    - assets/images/kaggle_dataset/Bamboo/
+    - assets/images/kaggle_dataset/Beans/
+    - assets/images/kaggle_dataset/Betel/
+    - assets/images/kaggle_dataset/Bhrami/
+    - assets/images/kaggle_dataset/Bringaraja/
+    - assets/images/kaggle_dataset/Caricature/
+    - assets/images/kaggle_dataset/Castor/
+    - assets/images/kaggle_dataset/Catharanthus/
+    - assets/images/kaggle_dataset/Chakte/
+    - assets/images/kaggle_dataset/Chilly/
+    - assets/images/kaggle_dataset/Citron lime (herelikai)/
+    - assets/images/kaggle_dataset/Coffee/
+    - assets/images/kaggle_dataset/Common rue(naagdalli)/
+    - assets/images/kaggle_dataset/Coriender/
+    - assets/images/kaggle_dataset/Curry/
+    - assets/images/kaggle_dataset/Doddpathre/
+    - assets/images/kaggle_dataset/Drumstick/
+    - assets/images/kaggle_dataset/Ekka/
+    - assets/images/kaggle_dataset/Eucalyptus/
+    - assets/images/kaggle_dataset/Ganigale/
+    - assets/images/kaggle_dataset/Ganike/
+    - assets/images/kaggle_dataset/Gasagase/
+    - assets/images/kaggle_dataset/Ginger/
+    - assets/images/kaggle_dataset/Globe Amarnath/
+    - assets/images/kaggle_dataset/Guava/
+    - assets/images/kaggle_dataset/Henna/
+    - assets/images/kaggle_dataset/Hibiscus/
+    - assets/images/kaggle_dataset/Honge/
+    - assets/images/kaggle_dataset/Insulin/
+    - assets/images/kaggle_dataset/Jackfruit/
+    - assets/images/kaggle_dataset/Jasmine/
+    - assets/images/kaggle_dataset/Kambajala/
+    - assets/images/kaggle_dataset/Kasambruga/
+    - assets/images/kaggle_dataset/Kohlrabi/
+    - assets/images/kaggle_dataset/Lantana/
+    - assets/images/kaggle_dataset/Lemon/
+    - assets/images/kaggle_dataset/Lemongrass/
+    - assets/images/kaggle_dataset/Malabar_Nut/
+    - assets/images/kaggle_dataset/Malabar_Spinach/
+    - assets/images/kaggle_dataset/Mango/
+    - assets/images/kaggle_dataset/Marigold/
+    - assets/images/kaggle_dataset/Mint/
+    - assets/images/kaggle_dataset/Neem/
+    - assets/images/kaggle_dataset/Nelavembu/
+    - assets/images/kaggle_dataset/Nerale/
+    - assets/images/kaggle_dataset/Nooni/
+    - assets/images/kaggle_dataset/Onion/
+    - assets/images/kaggle_dataset/Padri/
+    - assets/images/kaggle_dataset/Palak(Spinach)/
+    - assets/images/kaggle_dataset/Papaya/
+    - assets/images/kaggle_dataset/Parijatha/
+    - assets/images/kaggle_dataset/Pea/
+    - assets/images/kaggle_dataset/Pepper/
+    - assets/images/kaggle_dataset/Pomoegranate/
+    - assets/images/kaggle_dataset/Pumpkin/
+    - assets/images/kaggle_dataset/Raddish/
+    - assets/images/kaggle_dataset/Rose/
+    - assets/images/kaggle_dataset/Sampige/
+    - assets/images/kaggle_dataset/Sapota/
+    - assets/images/kaggle_dataset/Seethaashoka/
+    - assets/images/kaggle_dataset/Seethapala/
+    - assets/images/kaggle_dataset/Spinach1/
+    - assets/images/kaggle_dataset/Tamarind/
+    - assets/images/kaggle_dataset/Taro/
+    - assets/images/kaggle_dataset/Tecoma/
+    - assets/images/kaggle_dataset/Thumbe/
+    - assets/images/kaggle_dataset/Tomato/
+    - assets/images/kaggle_dataset/Tulsi/
+    - assets/images/kaggle_dataset/Turmeric/
+    - assets/images/kaggle_dataset/ashoka/
+    - assets/images/kaggle_dataset/camphor/
+    - assets/images/kaggle_dataset/kamakasturi/
+    - assets/images/kaggle_dataset/kepala/
+    - assets/images/kaggle_dataset/non_herbal/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

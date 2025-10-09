@@ -1,0 +1,407 @@
+{
+    "Aloevera": [
+        "kaggle_dataset/Aloevera/102_jpg.rf.01328a3dc0de2f9bb9dc1c0c8201b49b.jpg",
+        "kaggle_dataset/Aloevera/102_jpg.rf.9a9117835bd374b023738b53cec18585.jpg",
+        "kaggle_dataset/Aloevera/102_jpg.rf.a8b637162179af9045020aabbca546b7.jpg"
+    ],
+    "Amla": [
+        "kaggle_dataset/Amla/350_jpg.rf.11cecf1832dd10e04eb31bd8065f471e.jpg",
+        "kaggle_dataset/Amla/350_jpg.rf.4acdbdcd8f412b233fa85372443d3865.jpg",
+        "kaggle_dataset/Amla/350_jpg.rf.8f9d8f586335bb687099a5c06d034946.jpg"
+    ],
+    "Amruthaballi": [
+        "kaggle_dataset/Amruthaballi/484_jpg.rf.005834f5dfc77d9e7a86acd665d1016d.jpg",
+        "kaggle_dataset/Amruthaballi/484_jpg.rf.420426d884042df3476d1eda7ba90968.jpg",
+        "kaggle_dataset/Amruthaballi/484_jpg.rf.bbf1fdb404166e7a357a9a672f1c874a.jpg"
+    ],
+    "Arali": [
+        "kaggle_dataset/Arali/666_jpg.rf.01ecfb2942bb43dd4029068cfece008a.jpg",
+        "kaggle_dataset/Arali/666_jpg.rf.9fbee680b9c320193b6af98f6cb6a542.jpg",
+        "kaggle_dataset/Arali/666_jpg.rf.ab301d2b78a8c98a19b7a0e53a87e557.jpg"
+    ],
+    "Astma_weed": [
+        "kaggle_dataset/Astma_weed/1006_jpg.rf.5b014a26527a7e75ea03dfb8288c52f9.jpg",
+        "kaggle_dataset/Astma_weed/1006_jpg.rf.6dffac7969a5203516ce000316c80a48.jpg",
+        "kaggle_dataset/Astma_weed/1006_jpg.rf.9153e1684cac49b2be0eebacac840fbe.jpg"
+    ],
+    "Badipala": [
+        "kaggle_dataset/Badipala/1170_jpg.rf.6c0b90c977c80a4bd6c943b24232ff16.jpg",
+        "kaggle_dataset/Badipala/1170_jpg.rf.bd4e45c37f8e4c6b83eedae7e1a1c5aa.jpg",
+        "kaggle_dataset/Badipala/1170_jpg.rf.cc76e169cac734470b61cf01b690180d.jpg"
+    ],
+    "Balloon_Vine": [
+        "kaggle_dataset/Balloon_Vine/1322_jpg.rf.0fafe4ac9e4d38c97629591fc274787d.jpg",
+        "kaggle_dataset/Balloon_Vine/1322_jpg.rf.2a13a49c615eb04727094d059bc064da.jpg",
+        "kaggle_dataset/Balloon_Vine/1322_jpg.rf.7954b11d0d686680aab815937ec78862.jpg"
+    ],
+    "Bamboo": [
+        "kaggle_dataset/Bamboo/1448_jpg.rf.47733bbb4108e6c24a9e25e73528b95e.jpg",
+        "kaggle_dataset/Bamboo/1448_jpg.rf.56df30999d5df64e8d5cfbdfed24bd3b.jpg",
+        "kaggle_dataset/Bamboo/1448_jpg.rf.f04d03c515f447b51cf1739b78a014f2.jpg"
+    ],
+    "Beans": [
+        "kaggle_dataset/Beans/1680_jpg.rf.27fca57da746a78db7be7fb252b5e399.jpg",
+        "kaggle_dataset/Beans/1680_jpg.rf.2a98a21fd47aba3c72aea122fccbe70e.jpg",
+        "kaggle_dataset/Beans/1680_jpg.rf.4d61c6e2877830fb35d9a53aacd637ef.jpg"
+    ],
+    "Betel": [
+        "kaggle_dataset/Betel/1876_jpg.rf.1f034c56b02eb6c6dde0dd40826a6cb9.jpg",
+        "kaggle_dataset/Betel/1876_jpg.rf.2908535f96ecc8b938b423027044c6a6.jpg",
+        "kaggle_dataset/Betel/1876_jpg.rf.e3c37109c904334bae248c104bdcc93e.jpg"
+    ],
+    "Bhrami": [
+        "kaggle_dataset/Bhrami/2218_jpg.rf.8eed15e34341f968e1d5e72ff167f6fe.jpg",
+        "kaggle_dataset/Bhrami/2218_jpg.rf.c3384236f979d59a29da5ec1cf06aa14.jpg",
+        "kaggle_dataset/Bhrami/2218_jpg.rf.e47f03021c54a8afe8fea1bf3d52a62d.jpg"
+    ],
+    "Bringaraja": [
+        "kaggle_dataset/Bringaraja/IMG_20190909_134427_jpg.rf.0da6b22ca3b0132225703a9873c49df5.jpg",
+        "kaggle_dataset/Bringaraja/IMG_20190909_134427_jpg.rf.3fd9e5082323078c7ef4cfb0e39dc536.jpg",
+        "kaggle_dataset/Bringaraja/IMG_20190909_134427_jpg.rf.d544917414521f08adfc84737f253117.jpg"
+    ],
+    "Caricature": [
+        "kaggle_dataset/Caricature/148_jpg.rf.5372abec919a98dad8720b6fe4d3ae95.jpg",
+        "kaggle_dataset/Caricature/148_jpg.rf.553a40ad0c38b0226f450774047f82fe.jpg",
+        "kaggle_dataset/Caricature/148_jpg.rf.bfffc6c000ca92774f6d1013fab429aa.jpg"
+    ],
+    "Castor": [
+        "kaggle_dataset/Castor/300_jpg.rf.004c7409fbfbb92fc31e9a1e86414c87.jpg",
+        "kaggle_dataset/Castor/300_jpg.rf.a3289ce65103ed5ed845e68af452ade4.jpg",
+        "kaggle_dataset/Castor/300_jpg.rf.d5250faae1128e64ff8ad98768d3b529.jpg"
+    ],
+    "Catharanthus": [
+        "kaggle_dataset/Catharanthus/558_jpg.rf.0d67b80bf2907940c1b300348d9a90c4.jpg",
+        "kaggle_dataset/Catharanthus/558_jpg.rf.3abde7b033585725a9ef6faddc719c9f.jpg",
+        "kaggle_dataset/Catharanthus/558_jpg.rf.d5916aa049f187b7e8fc74b0e3af3684.jpg"
+    ],
+    "Chakte": [
+        "kaggle_dataset/Chakte/832_jpg.rf.2fc9f937ee3e3b0d98d0003841cb54a0.jpg",
+        "kaggle_dataset/Chakte/832_jpg.rf.c6d1fa91f19ade2b84cbdbed1e3bd673.jpg",
+        "kaggle_dataset/Chakte/832_jpg.rf.e3f9a59ce4af7b5949beeef73c00560f.jpg"
+    ],
+    "Chilly": [
+        "kaggle_dataset/Chilly/102_jpg.rf.04d7f0369b38978685436ba9bd746578.jpg",
+        "kaggle_dataset/Chilly/102_jpg.rf.123df679c0b0ebf74fa094e8714b64ba.jpg",
+        "kaggle_dataset/Chilly/102_jpg.rf.ec2ffd0ca4d221bed29dea58f46e7bd6.jpg"
+    ],
+    "Citron lime (herelikai)": [
+        "kaggle_dataset/Citron lime (herelikai)/102_jpg.rf.06be1743a00c21e4b1afab86db21b88e.jpg",
+        "kaggle_dataset/Citron lime (herelikai)/102_jpg.rf.11fd261db95a2d2cc87ffd3aa5b84b8d.jpg",
+        "kaggle_dataset/Citron lime (herelikai)/102_jpg.rf.5aec3e29623571b1e78cc86112b26a44.jpg"
+    ],
+    "Coffee": [
+        "kaggle_dataset/Coffee/IMG_20190908_092448_1_jpg.rf.308f8e79ac118a2eff573f91f2bda8fa.jpg",
+        "kaggle_dataset/Coffee/IMG_20190908_092448_1_jpg.rf.45572b438729b5a8e96819c174977010.jpg",
+        "kaggle_dataset/Coffee/IMG_20190908_092448_1_jpg.rf.496a0bfc19e13c95a4aa265c87352e40.jpg"
+    ],
+    "Common rue(naagdalli)": [
+        "kaggle_dataset/Common rue(naagdalli)/104_jpg.rf.0b41ab71b7e0e5bc929db7210ff47034.jpg",
+        "kaggle_dataset/Common rue(naagdalli)/104_jpg.rf.5156d8f312a781fdc3e256cbce0891c1.jpg",
+        "kaggle_dataset/Common rue(naagdalli)/104_jpg.rf.599e7bcb5c03ec145a551da3cc911c60.jpg"
+    ],
+    "Coriender": [
+        "kaggle_dataset/Coriender/136_jpg.rf.5b7af41ec9dbce90637ce018e42e7f9d.jpg",
+        "kaggle_dataset/Coriender/136_jpg.rf.910ef4848ece8ef900d777761873fc06.jpg",
+        "kaggle_dataset/Coriender/136_jpg.rf.a3f83c8224af4bd7d104a351a78c922e.jpg"
+    ],
+    "Curry": [
+        "kaggle_dataset/Curry/366_jpg.rf.1bd9e17c683d7ba3fc0e46a05731d5ab.jpg",
+        "kaggle_dataset/Curry/366_jpg.rf.22ae5c239040c44ad9e59eee64139831.jpg",
+        "kaggle_dataset/Curry/366_jpg.rf.3561da710984d5a5a1f58906779bb773.jpg"
+    ],
+    "Doddpathre": [
+        "kaggle_dataset/Doddpathre/102_jpg.rf.4b57c4a0950273d9ac901556525da36c.jpg",
+        "kaggle_dataset/Doddpathre/102_jpg.rf.60600e052a4d350ddc1adb229534b532.jpg",
+        "kaggle_dataset/Doddpathre/102_jpg.rf.825b3c47c4e55c07f82452ae0e1923ed.jpg"
+    ],
+    "Drumstick": [
+        "kaggle_dataset/Drumstick/286_jpg.rf.1921af7d2e407d0b9deeda933ff5c3b0.jpg",
+        "kaggle_dataset/Drumstick/286_jpg.rf.2ffb54c9b8c80ed7fb43a33a9a07c122.jpg",
+        "kaggle_dataset/Drumstick/286_jpg.rf.d3f6c08e4bcfdd96de67edf0295eb9e4.jpg"
+    ],
+    "Ekka": [
+        "kaggle_dataset/Ekka/398_jpg.rf.088685985835d36150604db02c35d5ee.jpg",
+        "kaggle_dataset/Ekka/398_jpg.rf.4f508f3476c657249fd185ebdfe4368a.jpg",
+        "kaggle_dataset/Ekka/398_jpg.rf.9071af60e35cc3c44d5ef290a3769ad6.jpg"
+    ],
+    "Eucalyptus": [
+        "kaggle_dataset/Eucalyptus/560_jpg.rf.6f2bee67ffe2c3943a1af6534662a3e0.jpg",
+        "kaggle_dataset/Eucalyptus/560_jpg.rf.9610aa2a3eb4ff1096329a6719a06865.jpg",
+        "kaggle_dataset/Eucalyptus/560_jpg.rf.effe4e94342e3a7bde9c3f092c564666.jpg"
+    ],
+    "Ganigale": [
+        "kaggle_dataset/Ganigale/IMG_20190905_173845_jpg.rf.10f08d52337017c48f0283092dbc1a41.jpg",
+        "kaggle_dataset/Ganigale/IMG_20190905_173845_jpg.rf.608956d8a850bdb0cfdd1e0dd9940bfa.jpg",
+        "kaggle_dataset/Ganigale/IMG_20190905_173845_jpg.rf.fab063952dfe55ae755833276084a070.jpg"
+    ],
+    "Ganike": [
+        "kaggle_dataset/Ganike/IMG_20190908_172420_jpg.rf.304dc9377ba7633086a2460446ae9927.jpg",
+        "kaggle_dataset/Ganike/IMG_20190908_172420_jpg.rf.6cef6a8593d5076f322c11179603d662.jpg",
+        "kaggle_dataset/Ganike/IMG_20190908_172420_jpg.rf.8cecbb0c5b793bc40039c186fef7aaa3.jpg"
+    ],
+    "Gasagase": [
+        "kaggle_dataset/Gasagase/102_jpg.rf.019a7c0ffdf78e0170847cc1b4582fd8.jpg",
+        "kaggle_dataset/Gasagase/102_jpg.rf.c25a29e7f227dfbcd80ed3f416fc3b81.jpg",
+        "kaggle_dataset/Gasagase/102_jpg.rf.dd34684521634fb10e29d946ba3d5063.jpg"
+    ],
+    "Ginger": [
+        "kaggle_dataset/Ginger/100_jpg.rf.45f6889af03b5332d5e28463a00f3f14.jpg",
+        "kaggle_dataset/Ginger/100_jpg.rf.75406bf0231dc2773bc30d73636aa408.jpg",
+        "kaggle_dataset/Ginger/100_jpg.rf.a3eb353bb775f6dda7a0e695f3814c22.jpg"
+    ],
+    "Globe Amarnath": [
+        "kaggle_dataset/Globe Amarnath/166_jpg.rf.0a25d29c10f279e5a5770968a291326e.jpg",
+        "kaggle_dataset/Globe Amarnath/166_jpg.rf.bd255898de9ef6a75bb8cb3a1fe8f7e2.jpg",
+        "kaggle_dataset/Globe Amarnath/166_jpg.rf.c8bb0d9781c5d26971113db0975abced.jpg"
+    ],
+    "Guava": [
+        "kaggle_dataset/Guava/160_jpg.rf.7edddb3d40f3022d0718de28cc58c257.jpg",
+        "kaggle_dataset/Guava/160_jpg.rf.9663f8fc230a611f90591672421eb73f.jpg",
+        "kaggle_dataset/Guava/160_jpg.rf.d8df119f41c3b2c46807588c5e2f1b28.jpg"
+    ],
+    "Henna": [
+        "kaggle_dataset/Henna/328_jpg.rf.02c8c369c7584698fd8a5f6604567975.jpg",
+        "kaggle_dataset/Henna/328_jpg.rf.5c9ef5a1feaa56ca45b62bc00062ae64.jpg",
+        "kaggle_dataset/Henna/328_jpg.rf.ab7db48f476e14f78f5e4b0921ef100a.jpg"
+    ],
+    "Hibiscus": [
+        "kaggle_dataset/Hibiscus/490_jpg.rf.0632f77884b949c4a7af209ea2c429a9.jpg",
+        "kaggle_dataset/Hibiscus/490_jpg.rf.7ccbe6131e752f09e13cda942f119859.jpg",
+        "kaggle_dataset/Hibiscus/490_jpg.rf.84294ae18c921424bd0b942d7bab5fcb.jpg"
+    ],
+    "Honge": [
+        "kaggle_dataset/Honge/728_jpg.rf.04e12fc98c224584dc3ff7573eb5dd9b.jpg",
+        "kaggle_dataset/Honge/728_jpg.rf.16a112358062a0e00d520fe6afa83112.jpg",
+        "kaggle_dataset/Honge/728_jpg.rf.476cfdb569ed2992d9ed2531dca4e967.jpg"
+    ],
+    "Insulin": [
+        "kaggle_dataset/Insulin/100_jpg.rf.4ee747ea4d40ecfe26ebff8e43ab5c3b.jpg",
+        "kaggle_dataset/Insulin/100_jpg.rf.6fbdf34d4da07616cd4f82a3f5271d64.jpg",
+        "kaggle_dataset/Insulin/100_jpg.rf.f349adb8f6605a20d6028fb2d98cae8b.jpg"
+    ],
+    "Jackfruit": [
+        "kaggle_dataset/Jackfruit/180_jpg.rf.30b4179b5ad8fcb8e5fe8deb3407fb6d.jpg",
+        "kaggle_dataset/Jackfruit/180_jpg.rf.629633a2beafb11800104c942bb4dbd1.jpg",
+        "kaggle_dataset/Jackfruit/180_jpg.rf.bf605e533a9e5e212579962297b78cb5.jpg"
+    ],
+    "Jasmine": [
+        "kaggle_dataset/Jasmine/400_jpg.rf.18cbc9ea1651ee7c03bbf78f45f2ea07.jpg",
+        "kaggle_dataset/Jasmine/400_jpg.rf.3252432672af19d5c43771f3f811c6d7.jpg",
+        "kaggle_dataset/Jasmine/400_jpg.rf.a5c6646c5941dd57df473cea8dc6fa71.jpg"
+    ],
+    "Kambajala": [
+        "kaggle_dataset/Kambajala/498_jpg.rf.37abb6cc8dc6b02f9b0ffc5ae8489d3d.jpg",
+        "kaggle_dataset/Kambajala/498_jpg.rf.6c00e0f0db83586b3385ce66a4754e21.jpg",
+        "kaggle_dataset/Kambajala/498_jpg.rf.95f3f6f5a90c4826fccfd70ac15cff9e.jpg"
+    ],
+    "Kasambruga": [
+        "kaggle_dataset/Kasambruga/616_jpg.rf.0e90c0241ac2325f3c0ba87d375ccdee.jpg",
+        "kaggle_dataset/Kasambruga/616_jpg.rf.2643189e346594eba77f6fed4224daff.jpg",
+        "kaggle_dataset/Kasambruga/616_jpg.rf.5661d8150b23e8e636161a04269463b8.jpg"
+    ],
+    "Kohlrabi": [
+        "kaggle_dataset/Kohlrabi/20190824_182938_jpg.rf.2b6c39e2c914772d0bd6449c9bd0571d.jpg",
+        "kaggle_dataset/Kohlrabi/20190824_182938_jpg.rf.6e020ad1c49804d60221d2418fb30d4b.jpg",
+        "kaggle_dataset/Kohlrabi/20190824_182938_jpg.rf.f1689a8dbba6caaf8d58c843206ec5ba.jpg"
+    ],
+    "Lantana": [
+        "kaggle_dataset/Lantana/IMG_20190908_090519_1_jpg.rf.7e6569762498c115281d63ae7cf6995a.jpg",
+        "kaggle_dataset/Lantana/IMG_20190908_090519_1_jpg.rf.bc783dd73c4ef5bfba9d0f767c85162d.jpg",
+        "kaggle_dataset/Lantana/IMG_20190908_090519_1_jpg.rf.f06bf192bfc57b80e673ece294520aaf.jpg"
+    ],
+    "Lemon": [
+        "kaggle_dataset/Lemon/100_jpg.rf.331399fa283b5c9fd536013dec6711ec.jpg",
+        "kaggle_dataset/Lemon/100_jpg.rf.8ab0697ab8679641fa20c68589619c72.jpg",
+        "kaggle_dataset/Lemon/100_jpg.rf.e01d588a75750263e1554be93d27b9c6.jpg"
+    ],
+    "Lemongrass": [
+        "kaggle_dataset/Lemongrass/12_jpg.rf.1e605074c78668dfc85967be063b2526.jpg",
+        "kaggle_dataset/Lemongrass/12_jpg.rf.251655cb8813dbf1a79ff9ec385293ef.jpg",
+        "kaggle_dataset/Lemongrass/12_jpg.rf.45d51222cd9b7b2e7f17948f0175911d.jpg"
+    ],
+    "Malabar_Nut": [
+        "kaggle_dataset/Malabar_Nut/IMG_20190909_131907_jpg.rf.17a9dccbb225609cda7469013db44c57.jpg",
+        "kaggle_dataset/Malabar_Nut/IMG_20190909_131907_jpg.rf.4b5710e78f5f9044a72c5ff0f2ff4696.jpg",
+        "kaggle_dataset/Malabar_Nut/IMG_20190909_131907_jpg.rf.8a0e6f2bcce6f987b5878910c12fc6c0.jpg"
+    ],
+    "Malabar_Spinach": [
+        "kaggle_dataset/Malabar_Spinach/100_jpg.rf.97dc7a5bc9f2061999e7d6aa08be1ee7.jpg",
+        "kaggle_dataset/Malabar_Spinach/100_jpg.rf.99472150df56d14b6039484b975509fc.jpg",
+        "kaggle_dataset/Malabar_Spinach/100_jpg.rf.c88096a6511b1e6e117025876913e00d.jpg"
+    ],
+    "Mango": [
+        "kaggle_dataset/Mango/160_jpg.rf.2c35427eb6b838f78fb40f30a41570ce.jpg",
+        "kaggle_dataset/Mango/160_jpg.rf.3aa9bd1c2b0afd1d0cfc7d2fa9f8ccd6.jpg",
+        "kaggle_dataset/Mango/160_jpg.rf.dfeb44f43269f95982ef241772d87a87.jpg"
+    ],
+    "Marigold": [
+        "kaggle_dataset/Marigold/366_jpg.rf.73bac8df73c252d9ddfdccbdbc02efa1.jpg",
+        "kaggle_dataset/Marigold/366_jpg.rf.81b6891fcf140fcf689ed203cf4801b3.jpg",
+        "kaggle_dataset/Marigold/366_jpg.rf.f22ff1dbe7f73b55133328ce5b351b7a.jpg"
+    ],
+    "Mint": [
+        "kaggle_dataset/Mint/552_jpg.rf.16a58e193351bb44b2fd3cb1bc196743.jpg",
+        "kaggle_dataset/Mint/552_jpg.rf.9713bbd0a64cb09540431dfe7d0e4869.jpg",
+        "kaggle_dataset/Mint/552_jpg.rf.be3b15ce8e159963b7786b4443888c8c.jpg"
+    ],
+    "Neem": [
+        "kaggle_dataset/Neem/1002_jpg.rf.0bf6220a101d14bbbae582d5a9e77883.jpg",
+        "kaggle_dataset/Neem/1002_jpg.rf.0dd7f6796a78cd482448f1211669fd01.jpg",
+        "kaggle_dataset/Neem/1002_jpg.rf.928006e7858e173924ad78d2d993ec0b.jpg"
+    ],
+    "Nelavembu": [
+        "kaggle_dataset/Nelavembu/1178_jpg.rf.8e50ced034212168c4d435695cce0e33.jpg",
+        "kaggle_dataset/Nelavembu/1178_jpg.rf.b550a3d8cd69f86673ec6d1625f0aa36.jpg",
+        "kaggle_dataset/Nelavembu/1178_jpg.rf.bb4e0506f87ef5127e3eb2b3f645918f.jpg"
+    ],
+    "Nerale": [
+        "kaggle_dataset/Nerale/IMG_20190921_122216_jpg.rf.0e781ff5969980f1f8d51a63aabe90cf.jpg",
+        "kaggle_dataset/Nerale/IMG_20190921_122216_jpg.rf.97badcbbec38801dde84c7186eb402e4.jpg",
+        "kaggle_dataset/Nerale/IMG_20190921_122216_jpg.rf.a158833f47d71226eab00c1acf6ff026.jpg"
+    ],
+    "Nooni": [
+        "kaggle_dataset/Nooni/IMG_20190921_113207_jpg.rf.0a3b0ff16a0cca2a9ee5932db668b66a.jpg",
+        "kaggle_dataset/Nooni/IMG_20190921_113207_jpg.rf.9164e6455ec0fbc7c1f5162e7d056c7a.jpg",
+        "kaggle_dataset/Nooni/IMG_20190921_113207_jpg.rf.c5748e140363a027fed88a719629d6a5.jpg"
+    ],
+    "Onion": [
+        "kaggle_dataset/Onion/20190824_181930_jpg.rf.5bd909c883e3e9354b4610bc647ad1f1.jpg",
+        "kaggle_dataset/Onion/20190824_181930_jpg.rf.d4690fdb47d7627b834d358e4574c421.jpg",
+        "kaggle_dataset/Onion/20190824_181930_jpg.rf.deeda4ae33d66fb78f2f0dd8a935975a.jpg"
+    ],
+    "Padri": [
+        "kaggle_dataset/Padri/P_20190921_114625_jpg.rf.2162978b93dd3d6e6aad4abc37ea36b9.jpg",
+        "kaggle_dataset/Padri/P_20190921_114625_jpg.rf.f317f1e020f8c4ee073b67aac9c2df25.jpg",
+        "kaggle_dataset/Padri/P_20190921_114625_jpg.rf.fbd7ddf4e88cec6cc6070e52cfa9ac77.jpg"
+    ],
+    "Palak(Spinach)": [
+        "kaggle_dataset/Palak(Spinach)/IMG_20190929_122614_jpg.rf.623481a689592e7b632ce14995c7988c.jpg",
+        "kaggle_dataset/Palak(Spinach)/IMG_20190929_122614_jpg.rf.bf6d3ce41186ff03569bffd01f6fc737.jpg",
+        "kaggle_dataset/Palak(Spinach)/IMG_20190929_122614_jpg.rf.ec679e5e5715a0c0f4c4fdf5fa1f41f5.jpg"
+    ],
+    "Papaya": [
+        "kaggle_dataset/Papaya/20190822_172548_jpg.rf.00266bf3060112b5a94cd0b8dcb9a5d3.jpg",
+        "kaggle_dataset/Papaya/20190822_172548_jpg.rf.447d4d6eaa46e1284b8ccd8906f1b10e.jpg",
+        "kaggle_dataset/Papaya/20190822_172548_jpg.rf.983812c0c8eb13a964d24909b0c266e8.jpg"
+    ],
+    "Parijatha": [
+        "kaggle_dataset/Parijatha/IMG_20190919_074045088_jpg.rf.34e4ebe784b0c819d2e21630d9515059.jpg",
+        "kaggle_dataset/Parijatha/IMG_20190919_074045088_jpg.rf.35a1b7f60f8252a34010e29378b917ae.jpg",
+        "kaggle_dataset/Parijatha/IMG_20190919_074045088_jpg.rf.78178dfe5c84b7beea5204991590acc7.jpg"
+    ],
+    "Pea": [
+        "kaggle_dataset/Pea/IMG_20190909_071021218_HDR_jpg.rf.35005d87792777b7e7f5b216c316af92.jpg",
+        "kaggle_dataset/Pea/IMG_20190909_071021218_HDR_jpg.rf.6b1b2d06c8e9a08758203d9914805498.jpg",
+        "kaggle_dataset/Pea/IMG_20190909_071021218_HDR_jpg.rf.82bb232ca4de5114919d3d3149da8a4d.jpg"
+    ],
+    "Pepper": [
+        "kaggle_dataset/Pepper/IMG_20190707_083849_jpg.rf.8a0098c73e196ace47f794d03d9d7682.jpg",
+        "kaggle_dataset/Pepper/IMG_20190707_083849_jpg.rf.b5faf32e94f5bfa188648e9f51801e11.jpg",
+        "kaggle_dataset/Pepper/IMG_20190707_083849_jpg.rf.ebcb92fddb9e5efb7502ded89da3282f.jpg"
+    ],
+    "Pomoegranate": [
+        "kaggle_dataset/Pomoegranate/20190919_153253_jpg.rf.7916a37ffde539a40be66048dd11d091.jpg",
+        "kaggle_dataset/Pomoegranate/20190919_153253_jpg.rf.cde867b29caca7e3bc07175761369f76.jpg",
+        "kaggle_dataset/Pomoegranate/20190919_153253_jpg.rf.e4284cf3dceeab079e6dc1963584d796.jpg"
+    ],
+    "Pumpkin": [
+        "kaggle_dataset/Pumpkin/20190822_175925_jpg.rf.4fe6d3708cf0727b6446d7820cae25a0.jpg",
+        "kaggle_dataset/Pumpkin/20190822_175925_jpg.rf.7b3dc15ad36e3f798dfc6440f2d45bc8.jpg",
+        "kaggle_dataset/Pumpkin/20190822_175925_jpg.rf.bb8c5361307a1dbe835eae9b896f381b.jpg"
+    ],
+    "Raddish": [
+        "kaggle_dataset/Raddish/IMG_20201013_164451_jpg.rf.26ee522fc90b3317d5e65e09be89e6df.jpg",
+        "kaggle_dataset/Raddish/IMG_20201013_164451_jpg.rf.a7ab0b180ad41838b2f6f4c21e9fc415.jpg",
+        "kaggle_dataset/Raddish/IMG_20201013_164451_jpg.rf.f8574428f6ddfdcd26d63447b9992ebc.jpg"
+    ],
+    "Rose": [
+        "kaggle_dataset/Rose/IMG_20201003_170742_jpg.rf.0af24d4800c57aa5c1573e4e5a6b7166.jpg",
+        "kaggle_dataset/Rose/IMG_20201003_170742_jpg.rf.79949e3176f9ba5426eecf5a48c38c4d.jpg",
+        "kaggle_dataset/Rose/IMG_20201003_170742_jpg.rf.c0e78a7b8bcbed2e532934fc9861967c.jpg"
+    ],
+    "Sampige": [
+        "kaggle_dataset/Sampige/IMG_20190920_141531381_jpg.rf.36782660d027fb5f3404a40dbddd74ac.jpg",
+        "kaggle_dataset/Sampige/IMG_20190920_141531381_jpg.rf.3b67cdd7895037fad59a93340b29fe3d.jpg",
+        "kaggle_dataset/Sampige/IMG_20190920_141531381_jpg.rf.f25d9b2e6926d1b898daa57a7aea4e2a.jpg"
+    ],
+    "Sapota": [
+        "kaggle_dataset/Sapota/IMG_20190921_115518_jpg.rf.5d8746cf3b4f16ebb3d2c2ee269d0413.jpg",
+        "kaggle_dataset/Sapota/IMG_20190921_115518_jpg.rf.7e91fc4934b78390ac5c0ede3297b4c5.jpg",
+        "kaggle_dataset/Sapota/IMG_20190921_115518_jpg.rf.e4202ef4b3b1ff004cdf42a345bd9a16.jpg"
+    ],
+    "Seethaashoka": [
+        "kaggle_dataset/Seethaashoka/P_20190921_111039_jpg.rf.2a7fa7f47c0f1ccf9695d1871020da82.jpg",
+        "kaggle_dataset/Seethaashoka/P_20190921_111039_jpg.rf.57f5c26bc988ea63c43d18b4221a400f.jpg",
+        "kaggle_dataset/Seethaashoka/P_20190921_111039_jpg.rf.e7acf4f58fa53d06ec7c1425bd2b894e.jpg"
+    ],
+    "Seethapala": [
+        "kaggle_dataset/Seethapala/20190824_163106_jpg.rf.402dcc927ffd95b42a61d1f9489ba2e6.jpg",
+        "kaggle_dataset/Seethapala/20190824_163106_jpg.rf.9f3c16130fecf677bffdf9e1ca790b37.jpg",
+        "kaggle_dataset/Seethapala/20190824_163106_jpg.rf.ec595759fd8e683c54180c81c603265d.jpg"
+    ],
+    "Spinach1": [
+        "kaggle_dataset/Spinach1/IMG_20190909_130512_jpg.rf.1d640af4a60bfa90f6305f95114e99e9.jpg",
+        "kaggle_dataset/Spinach1/IMG_20190909_130512_jpg.rf.84fb0d3065d413f1c773a6871fc67145.jpg",
+        "kaggle_dataset/Spinach1/IMG_20190909_130512_jpg.rf.b46c58aa839c4b21058bc30f38a003ec.jpg"
+    ],
+    "Tamarind": [
+        "kaggle_dataset/Tamarind/IMG_20201003_163715_jpg.rf.59db5771f063f12ddd572c47aaedd358.jpg",
+        "kaggle_dataset/Tamarind/IMG_20201003_163715_jpg.rf.a36096b12dac11799729c94adca1ef89.jpg",
+        "kaggle_dataset/Tamarind/IMG_20201003_163715_jpg.rf.c450998bc9e354171b8ed5d1e08b9d47.jpg"
+    ],
+    "Taro": [
+        "kaggle_dataset/Taro/IMG_20190906_112543-Copy_jpg.rf.303470ee63d6b34c4f960e6daf98aada.jpg",
+        "kaggle_dataset/Taro/IMG_20190906_112543-Copy_jpg.rf.8c5a88adb6cc272545b91011f4875c08.jpg",
+        "kaggle_dataset/Taro/IMG_20190906_112543-Copy_jpg.rf.f5bd22a1ee20d51718a396031d6d27c2.jpg"
+    ],
+    "Tecoma": [
+        "kaggle_dataset/Tecoma/20190920_141328_001_jpg.rf.054ffb86bb7cdd4392b6a3b71ed830e2.jpg",
+        "kaggle_dataset/Tecoma/20190920_141328_001_jpg.rf.218258a87ad2495c761fa6e52a3baa8e.jpg",
+        "kaggle_dataset/Tecoma/20190920_141328_001_jpg.rf.50ea17a3f0cf9047dcfc105143fb066e.jpg"
+    ],
+    "Thumbe": [
+        "kaggle_dataset/Thumbe/IMG_20190601_164718_jpg.rf.3c4b110d39beb7b72360e75d87b378eb.jpg",
+        "kaggle_dataset/Thumbe/IMG_20190601_164718_jpg.rf.7c937568a36833033913c39cb5765932.jpg",
+        "kaggle_dataset/Thumbe/IMG_20190601_164718_jpg.rf.a2bc935ba4d14567a8be00b6c19462b7.jpg"
+    ],
+    "Tomato": [
+        "kaggle_dataset/Tomato/20190919_171537_jpg.rf.2c9932fd8c75b877d9a24d6675c6a433.jpg",
+        "kaggle_dataset/Tomato/20190919_171537_jpg.rf.5bf870ff5e52ddfa0b6361a096d5f207.jpg",
+        "kaggle_dataset/Tomato/20190919_171537_jpg.rf.740311233fed8326c49822834eb0b857.jpg"
+    ],
+    "Tulsi": [
+        "kaggle_dataset/Tulsi/20190822_173627_jpg.rf.2fbb4f0bd1174d1615b7dc2ab301c3d7.jpg",
+        "kaggle_dataset/Tulsi/20190822_173627_jpg.rf.68452a62a2eefac80e43e15ec1a29341.jpg",
+        "kaggle_dataset/Tulsi/20190822_173627_jpg.rf.b04526497d73373bddfc741dae1ef476.jpg"
+    ],
+    "Turmeric": [
+        "kaggle_dataset/Turmeric/IMG_20190909_070303223_jpg.rf.5625684ef0ce855032c89244efae017b.jpg",
+        "kaggle_dataset/Turmeric/IMG_20190909_070303223_jpg.rf.94fecb2588f3578f21e05836c172626a.jpg",
+        "kaggle_dataset/Turmeric/IMG_20190909_070303223_jpg.rf.a07235697aadac51078d3ef1b2a3d03c.jpg"
+    ],
+    "ashoka": [
+        "kaggle_dataset/ashoka/1000_jpg.rf.60040b7defc603a76649bd90d75ef9ed.jpg",
+        "kaggle_dataset/ashoka/1000_jpg.rf.a56e927e45f86837f2ee22d373f51d83.jpg",
+        "kaggle_dataset/ashoka/1000_jpg.rf.f055f59b31d0275448735e8fb9b153a4.jpg"
+    ],
+    "camphor": [
+        "kaggle_dataset/camphor/P_20190924_102014_jpg.rf.9821a8a7a310a530331f85578e49eb45.jpg",
+        "kaggle_dataset/camphor/P_20190924_102014_jpg.rf.9d06495c71e9c6df18f5ea73555d1e6b.jpg",
+        "kaggle_dataset/camphor/P_20190924_102014_jpg.rf.a95db051f58b5881712c9e905ab31316.jpg"
+    ],
+    "kamakasturi": [
+        "kaggle_dataset/kamakasturi/IMG_20190929_174015_jpg.rf.150a13c0e3c831ee9a5bf6dcaf67059c.jpg",
+        "kaggle_dataset/kamakasturi/IMG_20190929_174015_jpg.rf.44094c47764634a8e4ee84784d1b44ce.jpg",
+        "kaggle_dataset/kamakasturi/IMG_20190929_174015_jpg.rf.a9a2d0aa32cb724c71133a7971efa859.jpg"
+    ],
+    "kepala": [
+        "kaggle_dataset/kepala/IMG_20191003_162604_jpg.rf.37243833be9b978e33b47fee982c380f.jpg",
+        "kaggle_dataset/kepala/IMG_20191003_162604_jpg.rf.83a4d582634e10d4d3cccd90f184c762.jpg",
+        "kaggle_dataset/kepala/IMG_20191003_162604_jpg.rf.fd0dbbfd7bc0203f3f277c4116ec0278.jpg"
+    ],
+    "non_herbal": [
+        "kaggle_dataset/non_herbal/flower_0000.jpg",
+        "kaggle_dataset/non_herbal/flower_0001.jpg",
+        "kaggle_dataset/non_herbal/flower_0002.jpg"
+    ]
+}

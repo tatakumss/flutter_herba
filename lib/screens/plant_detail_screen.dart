@@ -2,11 +2,31 @@
 
 import 'package:flutter/material.dart';
 import '../services/plant_library_service.dart';
+import '../services/popularity_service.dart';
 import '../config/app_config.dart';
 
-class PlantDetailScreen extends StatelessWidget {
+class PlantDetailScreen extends StatefulWidget {
   final PlantItem plant;
-  const PlantDetailScreen({super.key, required this.plant});
+  final PlantDataset dataset;
+  const PlantDetailScreen({super.key, required this.plant, required this.dataset});
+
+  @override
+  State<PlantDetailScreen> createState() => _PlantDetailScreenState();
+}
+
+class _PlantDetailScreenState extends State<PlantDetailScreen> {
+  final _pop = PopularityService();
+
+  String get _datasetKey => widget.dataset == PlantDataset.kaggle ? 'kaggle' : 'mini';
+
+  @override
+  void initState() {
+    super.initState();
+    // Increment popularity after first frame to avoid triggering during push animation rebuilds
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pop.increment(_datasetKey, widget.plant.name);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +64,7 @@ class PlantDetailScreen extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    plant.name,
+                    widget.plant.name,
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
@@ -66,7 +86,7 @@ class PlantDetailScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: plant.color.withOpacity(0.2),
+                      color: widget.plant.color.withOpacity(0.2),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
@@ -75,31 +95,31 @@ class PlantDetailScreen extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (plant.assetImages.isNotEmpty)
+                    if (widget.plant.assetImages.isNotEmpty)
                       Image.asset(
-                        plant.assetImages.first,
+                        widget.plant.assetImages.first,
                         fit: BoxFit.cover,
                         errorBuilder: (c, e, s) => Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [plant.color.withOpacity(0.35), plant.color.withOpacity(0.1)],
+                              colors: [widget.plant.color.withOpacity(0.35), widget.plant.color.withOpacity(0.1)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                           ),
-                          child: Center(child: Icon(Icons.image_not_supported_outlined, color: plant.color, size: 64)),
+                          child: Center(child: Icon(Icons.image_not_supported_outlined, color: widget.plant.color, size: 64)),
                         ),
                       )
                     else
                       Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [plant.color.withOpacity(0.35), plant.color.withOpacity(0.1)],
+                            colors: [widget.plant.color.withOpacity(0.35), widget.plant.color.withOpacity(0.1)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                         ),
-                        child: Center(child: Icon(Icons.local_florist, size: 80, color: plant.color)),
+                        child: Center(child: Icon(Icons.local_florist, size: 80, color: widget.plant.color)),
                       ),
                   ],
                 ),
@@ -120,19 +140,19 @@ class PlantDetailScreen extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color: plant.color.withOpacity(0.12),
+                            color: widget.plant.color.withOpacity(0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            plant.category,
+                            widget.plant.category,
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: plant.color,
+                              color: widget.plant.color,
                             ),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        ...plant.tags.map((t) => Container(
+                        ...widget.plant.tags.map((t) => Container(
                               margin: const EdgeInsets.only(right: 6),
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
@@ -156,7 +176,7 @@ class PlantDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      plant.description.isNotEmpty ? plant.description : 'No description available.',
+                      widget.plant.description.isNotEmpty ? widget.plant.description : 'No description available.',
                       style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
                     ),
 
@@ -166,13 +186,13 @@ class PlantDetailScreen extends StatelessWidget {
                       style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 8),
-                    if (plant.uses.isEmpty)
+                    if (widget.plant.uses.isEmpty)
                       Text('No uses listed.', style: theme.textTheme.bodyMedium)
                     else
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: plant.uses
+                        children: widget.plant.uses
                             .map((u) => Chip(
                                   label: Text(u),
                                   backgroundColor: theme.cardColor,

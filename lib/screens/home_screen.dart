@@ -7,6 +7,7 @@ import 'plant_screen.dart';
 import '../services/plant_library_service.dart';
 import 'plant_detail_screen.dart';
 import '../services/collection_service.dart';
+import '../services/popularity_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,6 +17,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  PlantDataset _mostDataset = PlantDataset.mini; // default to Mendeley
 
   @override
   Widget build(BuildContext context) {
@@ -252,9 +254,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Most Searched Herbal Plants
+              // Most Searched Plants (toggle between Mendeley/Kaggle)
               Text(
-                "Most Searched Herbal Plants",
+                "Most Searched Plants",
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -264,8 +266,40 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+              Row(
+                children: [
+                  _buildMostChip('Mendeley', _mostDataset == PlantDataset.mini, PlantDataset.mini),
+                  const SizedBox(width: 8),
+                  _buildMostChip('Kaggle', _mostDataset == PlantDataset.kaggle, PlantDataset.kaggle),
+                ],
+              ),
+              const SizedBox(height: 12),
               FutureBuilder<List<PlantItem>>(
-                future: PlantLibraryService().load(),
+                future: (() async {
+                  final svc = PlantLibraryService();
+                  final items = await svc.load(source: _mostDataset);
+                  // Order by popularity using PopularityService
+                  final pop = PopularityService();
+                  final key = _mostDataset == PlantDataset.kaggle ? 'kaggle' : 'mini';
+                  final names = await pop.topNames(key, limit: 8);
+                  if (names.isEmpty) {
+                    final sorted = [...items]..sort((a, b) => a.name.compareTo(b.name));
+                    return sorted.take(8).toList();
+                  }
+                  final mapByName = {for (final p in items) p.name: p};
+                  final ordered = <PlantItem>[];
+                  for (final n in names) {
+                    final p = mapByName[n];
+                    if (p != null) ordered.add(p);
+                  }
+                  // If some popular names no longer exist, backfill alphabetically
+                  if (ordered.length < 8) {
+                    final remaining = items.where((p) => !ordered.any((q) => q.name == p.name)).toList()
+                      ..sort((a, b) => a.name.compareTo(b.name));
+                    ordered.addAll(remaining.take(8 - ordered.length));
+                  }
+                  return ordered;
+                })(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Padding(
@@ -273,15 +307,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Center(child: CircularProgressIndicator()),
                     );
                   }
-                  final all = snapshot.data ?? [];
-                  final herbs = all.where((p) => p.category.toLowerCase() == 'herb').toList()
-                    ..sort((a, b) => a.name.compareTo(b.name));
-                  final top = herbs.take(8).toList();
+                  final top = snapshot.data ?? [];
                   if (top.isEmpty) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Text(
-                        'Library is empty. Add items to assets/plants.json.',
+                        'No data yet. View some plants to build Most Searched.',
                         style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7)),
                       ),
                     );
@@ -294,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       separatorBuilder: (_, __) => const SizedBox(width: 12),
                       itemBuilder: (context, i) {
                         final p = top[i];
-                        return _buildPlantChipCard(context, p);
+                        return _buildPlantChipCard(context, p, _mostDataset);
                       },
                     ),
                   );
@@ -307,10 +338,43 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildPlantChipCard(BuildContext context, PlantItem p) {
+  Widget _buildMostChip(String label, bool isSelected, PlantDataset value) {
+    return Container(
+      margin: const EdgeInsets.only(right: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: isSelected ? AppConfig.primaryColor : Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () async {
+          if (_mostDataset == value) return;
+          setState(() => _mostDataset = value);
+        },
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : AppConfig.primaryColor,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlantChipCard(BuildContext context, PlantItem p, PlantDataset dataset) {
     return InkWell(
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => PlantDetailScreen(plant: p)),
+        MaterialPageRoute(builder: (_) => PlantDetailScreen(plant: p, dataset: dataset)),
       ),
       child: Container(
         width: 180,
