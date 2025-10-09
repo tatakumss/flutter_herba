@@ -56,27 +56,53 @@ class PlantDetailScreen extends StatelessWidget {
               ),
             ),
 
-            // Hero image/gradient
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              height: 200,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [plant.color.withOpacity(0.35), plant.color.withOpacity(0.1)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+            // Hero image area
+            ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                height: 200,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: plant.color.withOpacity(0.2),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: plant.color.withOpacity(0.2),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Icon(Icons.local_florist, size: 80, color: plant.color),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (plant.assetImages.isNotEmpty)
+                      Image.asset(
+                        plant.assetImages.first,
+                        fit: BoxFit.cover,
+                        errorBuilder: (c, e, s) => Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [plant.color.withOpacity(0.35), plant.color.withOpacity(0.1)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          child: Center(child: Icon(Icons.image_not_supported_outlined, color: plant.color, size: 64)),
+                        ),
+                      )
+                    else
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [plant.color.withOpacity(0.35), plant.color.withOpacity(0.1)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Center(child: Icon(Icons.local_florist, size: 80, color: plant.color)),
+                      ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -155,37 +181,7 @@ class PlantDetailScreen extends StatelessWidget {
                             .toList(),
                       ),
 
-                    const SizedBox(height: 24),
-                    // CTA row
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {},
-                            icon: const Icon(Icons.bookmark_add_outlined),
-                            label: const Text('Save'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              backgroundColor: theme.colorScheme.primary,
-                              foregroundColor: theme.colorScheme.onPrimary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () {},
-                            icon: const Icon(Icons.share_outlined),
-                            label: const Text('Share'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                    const SizedBox(height: 0),
                   ],
                 ),
               ),

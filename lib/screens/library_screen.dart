@@ -1,6 +1,8 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import '../config/app_config.dart';
 import '../services/plant_library_service.dart';
 import 'plant_detail_screen.dart';
@@ -32,6 +34,43 @@ class _LibraryScreenState extends State<LibraryScreen> {
       _all = items;
       _loading = false;
     });
+    // DEBUG: verify first asset path exists in asset bundle
+    if (_all.isNotEmpty && _all.first.assetImages.isNotEmpty) {
+      final testPath = _all.first.assetImages.first;
+      // Print the path we will try to load
+      // ignore: avoid_print
+      print('[LibraryDebug] First asset path: ' + testPath);
+      try {
+        await rootBundle.load(testPath);
+        // ignore: avoid_print
+        print('[LibraryDebug] Asset found in bundle: ' + testPath);
+      } catch (e) {
+        // ignore: avoid_print
+        print('[LibraryDebug] Asset NOT found in bundle: ' + testPath + ' -> ' + e.toString());
+        // Extra: inspect AssetManifest.json for mini_dataset entries
+        try {
+          final manifestRaw = await rootBundle.loadString('AssetManifest.json');
+          // AssetManifest is a JSON map: assetPath -> [variants]
+          final Map<String, dynamic> manifest = (json.decode(manifestRaw) as Map).cast<String, dynamic>();
+          final keys = manifest.keys.where((k) => k.startsWith('assets/images/mini_dataset/')).toList()..sort();
+          // ignore: avoid_print
+          print('[LibraryDebug] Manifest mini_dataset count: ' + keys.length.toString());
+          for (var i = 0; i < (keys.length < 5 ? keys.length : 5); i++) {
+            // ignore: avoid_print
+            print('[LibraryDebug] Sample key ' + i.toString() + ': ' + keys[i]);
+          }
+          final hasExact = keys.contains(testPath);
+          // ignore: avoid_print
+          print('[LibraryDebug] Manifest contains exact testPath: ' + hasExact.toString());
+        } catch (e2) {
+          // ignore: avoid_print
+          print('[LibraryDebug] Failed to read AssetManifest.json: ' + e2.toString());
+        }
+      }
+    } else {
+      // ignore: avoid_print
+      print('[LibraryDebug] No assetImages on first item or list empty');
+    }
   }
 
   List<PlantItem> get _filtered => _service.search(_all, _query, category: _selectedCategory);
@@ -124,7 +163,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     : GridView.builder(
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          childAspectRatio: 0.8,
+                          // Make cards a bit taller to avoid bottom overflows
+                          childAspectRatio: 0.72,
                           crossAxisSpacing: 16,
                           mainAxisSpacing: 16,
                         ),
@@ -197,31 +237,52 @@ class _LibraryScreenState extends State<LibraryScreen> {
           children: [
             Expanded(
               flex: 3,
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      plant.color.withValues(alpha: 0.3),
-                      plant.color.withValues(alpha: 0.1),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(24),
-                    topRight: Radius.circular(24),
-                  ),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
                 ),
                 child: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    Center(
-                      child: Icon(
-                        Icons.local_florist,
-                        size: 48,
-                        color: plant.color,
+                    if (plant.assetImages.isNotEmpty)
+                      Image.asset(
+                        plant.assetImages.first,
+                        fit: BoxFit.cover,
+                        errorBuilder: (c, e, s) => Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                plant.color.withValues(alpha: 0.3),
+                                plant.color.withValues(alpha: 0.1),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          child: Center(child: Icon(Icons.image_not_supported_outlined, color: plant.color)),
+                        ),
+                      )
+                    else
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              plant.color.withValues(alpha: 0.3),
+                              plant.color.withValues(alpha: 0.1),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.local_florist,
+                            size: 48,
+                            color: plant.color,
+                          ),
+                        ),
                       ),
-                    ),
                     Positioned(
                       top: 12,
                       right: 12,
@@ -245,10 +306,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
             Expanded(
               flex: 2,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,6 +324,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 ? const Color(0xFF81C784)
                                 : AppConfig.primaryDark,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -270,9 +334,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             fontSize: 12,
                             color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.75),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
+                    const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
