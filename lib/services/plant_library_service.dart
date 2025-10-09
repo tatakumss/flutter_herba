@@ -165,6 +165,12 @@ class PlantLibraryService {
         'aloevera': 'aloevera',
         'chilly': 'chili',
         'pomoegranate': 'pomegranate',
+        'globeamarnath': 'globeamaranth',
+        'coriender': 'coriander',
+        'raddish': 'radish',
+        'spinach1': 'spinach',
+        // Common Rue (Naagdalli) variants
+        'commonruenaagdalli': 'common rue (naagdalli)',
       };
 
       String prettifyName(String s) {

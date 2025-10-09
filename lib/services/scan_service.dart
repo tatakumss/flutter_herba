@@ -1,11 +1,9 @@
-
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firestore_service.dart';
 import '../models/scan_models.dart';
-
 // Enhanced scan service with Firestore integration
 class ScanService {
   static final ScanService _instance = ScanService._internal();
@@ -74,8 +72,8 @@ class ScanService {
       
       return scanId;
     } catch (e) {
-      // Log the error for debugging
-      print('Error saving scan: $e');
+      // Log the error for debugging (avoid print in production)
+      debugPrint('Error saving scan: $e');
       return null;
     }
   }

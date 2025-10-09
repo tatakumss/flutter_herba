@@ -200,7 +200,7 @@ flutter:
     - assets/images/kaggle_dataset/camphor/
     - assets/images/kaggle_dataset/kamakasturi/
     - assets/images/kaggle_dataset/kepala/
-    - assets/images/kaggle_dataset/non_herbal/
+    
 
   # To add assets to your application, add an assets section, like this:
   # assets:

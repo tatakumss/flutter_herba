@@ -746,7 +746,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ],
                               ),
                             );
-                          }).toList(),
+                          }),
                         ],
                       ],
                     ),
@@ -815,7 +815,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   
                   // Show success message
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    final messenger = ScaffoldMessenger.of(this.context);
+                    messenger.showSnackBar(
                       const SnackBar(
                         content: Text('Removed from collection'),
                         backgroundColor: Colors.green,
@@ -828,7 +829,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 } catch (e) {
                   // Show error message
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    final messenger = ScaffoldMessenger.of(this.context);
+                    messenger.showSnackBar(
                       SnackBar(
                         content: Text('Failed to remove from collection: $e'),
                         backgroundColor: Colors.red,

@@ -134,39 +134,40 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Category & tags
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: widget.plant.color.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            widget.plant.category,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: widget.plant.color,
+                    // Category & tags (hidden if category is empty)
+                    if (widget.plant.category.isNotEmpty)
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: widget.plant.color.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              widget.plant.category,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: widget.plant.color,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        ...widget.plant.tags.map((t) => Container(
-                              margin: const EdgeInsets.only(right: 6),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: theme.cardColor,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: theme.dividerColor.withOpacity(0.3)),
-                              ),
-                              child: Text(
-                                t,
-                                style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8)),
-                              ),
-                            )),
-                      ],
-                    ),
+                          const SizedBox(width: 8),
+                          ...widget.plant.tags.map((t) => Container(
+                                margin: const EdgeInsets.only(right: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: theme.cardColor,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: theme.dividerColor.withOpacity(0.3)),
+                                ),
+                                child: Text(
+                                  t,
+                                  style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8)),
+                                ),
+                              )),
+                        ],
+                      ),
                     const SizedBox(height: 16),
 
                     // Description
