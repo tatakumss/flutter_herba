@@ -40,6 +40,8 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
   CameraController? _cameraController;
   bool _flashOn = false;
   bool _didAutoOnce = false;
+  // Disable auto first-capture to avoid showing results before user acts
+  final bool _enableAutoOnce = false;
   final _history = ScanHistoryService();
   final _collections = CollectionService();
   final _feedback = FeedbackService();
@@ -76,7 +78,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       'ood': '',
     },
   ];
-  String _selectedModelKey = 'v1';
+  String _selectedModelKey = 'combo';
 
   // Last scan context for saving to collection
   String _lastLabel = 'Unknown';
@@ -90,11 +92,21 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
   double? _skinRatio;
   double? _edgeDensity;
   double? _greenRatio;
+  // Only show error panel after the user actually attempts a scan
+  bool _hasTriedCapture = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Reset any previous preview/results so no results panel shows until user acts
+    _hasTriedCapture = false;
+    _previewBytes = null;
+    _results = [];
+    _resultsA = [];
+    _resultsB = [];
+    _showCombo = false;
+    _error = null;
     _initModel();
     _initCamera();
     // Load OOD profile for selected model; non-blocking
@@ -477,12 +489,10 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       try { await controller.setFlashMode(FlashMode.off); } catch (_) {}
       if (!mounted) return;
       setState(() { _flashOn = false; });
-      // Kick a one-time automatic classification so users see output immediately
-      // without tapping Capture. Safe-guard so it only runs once per screen open.
-      if (!_didAutoOnce) {
+      // Optionally run a one-time automatic classification; disabled by default
+      if (_enableAutoOnce && !_didAutoOnce) {
         _didAutoOnce = true;
-        // Delay slightly to ensure preview settles
-        Future.delayed(const Duration(milliseconds: 300), _autoClassifyOnce);
+        Future.delayed(const Duration(milliseconds: 500), _autoClassifyOnce);
       }
     } catch (e) {
       if (!mounted) return;
@@ -603,6 +613,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       if (file == null) return;
       final bytes = await file.readAsBytes();
       setState(() {
+        _hasTriedCapture = true;
         _previewBytes = bytes;
         _results = [];
         _error = null;
@@ -622,6 +633,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
 
   Future<void> _captureAndClassify() async {
     try {
+      setState(() { _hasTriedCapture = true; });
       if (_cameraController == null || !_cameraController!.value.isInitialized) {
         await _initCamera();
       }
@@ -801,6 +813,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
           _greenRatio = (pick['greenRatio'] as num?)?.toDouble();
           _oodConf = calibratedConf;
           _oodScore = oodScore;
+          debugPrint('[OOD] combo: A={is:$isA, score:$scoreA, reason:$rA} B={is:$isB, score:$scoreB, reason:$rB} -> is:$isOod reason:$rejReason conf=${calibratedConf.toStringAsFixed(3)} ood=${oodScore.toStringAsFixed(3)}');
         } else if (probs.isNotEmpty && emb.isNotEmpty) {
           final ev = _ood.evaluate(resizedRgb224: resized, probs: probs, embedding: emb);
           isOod = (ev['isOOD'] == true);
@@ -816,6 +829,10 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
           _skinRatio = skinRatio;
           _edgeDensity = edgeDensity;
           _greenRatio = greenRatio;
+          debugPrint('[OOD] reason=${rejReason ?? 'null'} conf=${calibratedConf.toStringAsFixed(3)} ood=${oodScore.toStringAsFixed(3)}'
+              '${skinRatio != null ? ' skin=${skinRatio.toStringAsFixed(3)}' : ''}'
+              '${edgeDensity != null ? ' edge=${edgeDensity.toStringAsFixed(3)}' : ''}'
+              '${greenRatio != null ? ' green=${greenRatio.toStringAsFixed(3)}' : ''}');
         }
         // Heuristic: flat/glossy green objects (e.g., appliances) often have
         // high green ratio but very low edge density and no skin. If OOD didn't
@@ -838,8 +855,38 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
             calibratedConf = math.min(calibratedConf, 0.20);
             _oodScore = oodScore;
             _oodConf = calibratedConf;
+            debugPrint('[OOD] heuristic NON_PLANT_VISUAL applied g=${g.toStringAsFixed(3)} e=${e.toStringAsFixed(3)} s=${s.toStringAsFixed(3)} top=$topLabel');
           }
         }
+      }
+
+      // 3b) Force OOD if a classifier predicts 'non_herbal' with sufficient score
+      double maxNonHerbalScore(List<Map<String, dynamic>> src) {
+        double best = 0.0;
+        for (final e in src) {
+          final l = (e['label'] ?? '').toString().toLowerCase();
+          final s = (e['score'] is num) ? (e['score'] as num).toDouble() : 0.0;
+          if (l == 'non_herbal' && s > best) best = s;
+        }
+        return best;
+      }
+      final nhA = maxNonHerbalScore(_resultsA);
+      final nhB = maxNonHerbalScore(_resultsB);
+      final nhMerged = maxNonHerbalScore(topKRes);
+      final nonHerbalScore = [nhA, nhB, nhMerged].fold<double>(0.0, (p, c) => c > p ? c : p);
+      // Flag OOD if 'non_herbal' is reasonably present, or modest with a weak top1
+      const nonHerbalMin = 0.12; // lowered so 0.152 will trigger
+      final top1Score = topKRes.isNotEmpty && (topKRes.first['score'] is num)
+          ? (topKRes.first['score'] as num).toDouble()
+          : 0.0;
+      final weakTop1 = top1Score < 0.65;
+      if (nonHerbalScore >= nonHerbalMin || (nonHerbalScore >= 0.08 && weakTop1)) {
+        isOod = true;
+        rejReason = 'NON_PLANT_VISUAL';
+        if (oodScore < 0.60) oodScore = 0.60;
+        calibratedConf = math.min(calibratedConf, 0.20);
+        _oodScore = oodScore;
+        _oodConf = calibratedConf;
       }
 
       // 4) Final results for UI: hide predictions for hard OOD reasons
@@ -886,7 +933,6 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
           candidates: candidates,
           oodReason: rejReason,
           oodScore: hardOod ? oodScore : null,
-          imageBytes: _previewBytes, // Include the image data
         );
         
         // Also save to local history for backward compatibility
@@ -1155,7 +1201,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                           ),
                         ),
                       ),
-                    if (_error != null)
+                    if (_error != null && _hasTriedCapture)
                       Positioned(
                         bottom: 20,
                         left: 20,
@@ -1165,14 +1211,14 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                           {'label': _error, 'score': 0.0},
                         ]),
                       )
-                    else if (_showCombo && (_resultsA.isNotEmpty || _resultsB.isNotEmpty))
+                    else if (_hasTriedCapture && _showCombo && (_resultsA.isNotEmpty || _resultsB.isNotEmpty))
                       Positioned(
                         bottom: 20,
                         left: 20,
                         right: 20,
                         child: _buildResultCardCombo(_resultsA, _resultsB),
                       )
-                    else if (_results.isNotEmpty)
+                    else if (_hasTriedCapture && _results.isNotEmpty)
                       Positioned(
                         bottom: 20,
                         left: 20,
@@ -1393,29 +1439,11 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                           try {
                             bool success;
                             if (type == 'error') {
-                              // Create scan context for error reports
-                              final scanContext = {
-                                'plantName': _lastLabel,
-                                'confidence': _lastConfidence,
-                                'isOod': _lastIsOod,
-                                'candidates': _lastCandidates.map((c) => {
-                                  'name': c['label'] ?? '',
-                                  'confidence': c['confidence'] ?? 0.0,
-                                }).toList(),
-                                'oodReason': _oodReason,
-                                'oodScore': _oodScore,
-                                'skinRatio': _skinRatio,
-                                'edgeDensity': _edgeDensity,
-                                'greenRatio': _greenRatio,
-                                'timestamp': DateTime.now().toIso8601String(),
-                              };
-
                               // For error reports, we need a scan ID
                               if (_currentScanId != null) {
                                 success = await _feedback.submitErrorReportWithScan(
                                   message: message,
                                   scanId: _currentScanId!,
-                                  scanContext: scanContext,
                                 );
                               } else {
                                 // Fallback: create scan first, then report
@@ -1426,13 +1454,11 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                                   candidates: _lastCandidates,
                                   oodReason: _oodReason,
                                   oodScore: _oodScore,
-                                  imageBytes: _previewBytes, // Include the image data
                                 );
                                 if (scanId != null) {
                                   success = await _feedback.submitErrorReportWithScan(
                                     message: message,
                                     scanId: scanId,
-                                    scanContext: scanContext,
                                   );
                                 } else {
                                   success = false;
@@ -1619,11 +1645,31 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                       );
                       return;
                     }
+                    // OOD / low-confidence gating to reduce false positives
+                    // Compute top1 and top2 from current results
+                    final src = _results.isNotEmpty ? _results : (_resultsA.isNotEmpty ? _resultsA : _resultsB);
+                    final top1 = src.isNotEmpty && (src.first['score'] is num)
+                        ? (src.first['score'] as num).toDouble()
+                        : _lastConfidence;
+                    final top2 = src.length > 1 && (src[1]['score'] is num)
+                        ? (src[1]['score'] as num).toDouble()
+                        : 0.0;
+                    const identifyMin = 0.90; // require at least 90% to allow saving
+                    const separationMin = 0.25; // require top1-top2 >= 0.25
+                    final flaggedOod = (_oodReason == 'HUMAN_DETECTED' || _oodReason == 'NON_PLANT_VISUAL' || _oodReason == 'STATISTICAL_OOD');
+                    if (flaggedOod || top1 < identifyMin || (top1 - top2) < separationMin) {
+                      final msg = flaggedOod
+                          ? 'Out-of-domain detected. Try capturing a single leaf on a plain background.'
+                          : 'Low confidence. Improve lighting and fill the frame with a single leaf to save.';
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(msg)),
+                      );
+                      return;
+                    }
                     // Prepare base64 image and metadata
                     final imgB64 = convert.base64Encode(_previewBytes!);
                     // Build top-3 candidates from current results
                     List<Map<String, dynamic>> cands = [];
-                    final src = _results.isNotEmpty ? _results : (_resultsA.isNotEmpty ? _resultsA : _resultsB);
                     for (final e in src.take(3)) {
                       final l = (e['label'] ?? '').toString();
                       final s = (e['score'] is num) ? (e['score'] as num).toDouble() : 0.0;

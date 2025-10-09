@@ -1,0 +1,197 @@
+{
+    "Akapulko": [
+        "mini_dataset/Akapulko/Class17_100_jpg.rf.05227ac193fad5c987f6b45c609f007a.jpg",
+        "mini_dataset/Akapulko/Class17_100_jpg.rf.097816539035bf8e905966048ca001b8.jpg",
+        "mini_dataset/Akapulko/Class17_100_jpg.rf.f85914fea89e434539502d2ab2899638.jpg"
+    ],
+    "Alagaw": [
+        "mini_dataset/Alagaw/Class29_103_jpg.rf.0376e5fdc1e02f46a00c49db728b1094.jpg",
+        "mini_dataset/Alagaw/Class29_103_jpg.rf.a3c25ed8142b17072aa35c0d146ae976.jpg",
+        "mini_dataset/Alagaw/Class29_103_jpg.rf.b1551b4fb9f1902b4ef28b2918bcc90a.jpg"
+    ],
+    "Aloe Vera": [
+        "mini_dataset/Aloe Vera/Clss24_101_jpg.rf.5e0688060eece3dd92a875cf0e8bd132.jpg",
+        "mini_dataset/Aloe Vera/Clss24_101_jpg.rf.5f4f7dc42a7ba42d6d1a8b6f289b4332.jpg",
+        "mini_dataset/Aloe Vera/Clss24_101_jpg.rf.b8683ca063159cd689fc7c5ac2bead69.jpg"
+    ],
+    "Banaba": [
+        "mini_dataset/Banaba/Class25_100_jpg.rf.74b0f3c090d81a8ee6f5bbc7fc7b11b9.jpg",
+        "mini_dataset/Banaba/Class25_100_jpg.rf.7f45fc8de35b736e444de6a17a97e40f.jpg",
+        "mini_dataset/Banaba/Class25_100_jpg.rf.88bf37276fce4c165a95e1831e340b3a.jpg"
+    ],
+    "Bignay": [
+        "mini_dataset/Bignay/Class3_100_jpg.rf.0ac2e766b4fb9cc857ae88ddc8d89d84.jpg",
+        "mini_dataset/Bignay/Class3_100_jpg.rf.301e70e3424171c0e02aed62ce204bf8.jpg",
+        "mini_dataset/Bignay/Class3_100_jpg.rf.bab6ba9c731d1b9bd76d7dd0c60bf094.jpg"
+    ],
+    "Bitter Melon": [
+        "mini_dataset/Bitter Melon/Class13_100_jpg.rf.518270f9bd222104e8e3e79be2b810ee.jpg",
+        "mini_dataset/Bitter Melon/Class13_100_jpg.rf.949a3db3c8965e859e8ff4600300e7cb.jpg",
+        "mini_dataset/Bitter Melon/Class13_100_jpg.rf.a60f3f95f551c89f3920f73accd599ca.jpg"
+    ],
+    "Calamansi": [
+        "mini_dataset/Calamansi/0d15659bd9fd4862bba452bf15ea929b_jpg.rf.e7842be17f2cbc3a6244b9b2eeafc36b.jpg",
+        "mini_dataset/Calamansi/1681544460689_1024x_jpg.rf.c41e8a361f1cce1d1b7d1191a867c3f0.jpg",
+        "mini_dataset/Calamansi/1693883950_1_jpeg.rf.c407c3ddec5472022d5b53b6ef50b8b8.jpg"
+    ],
+    "Cassava": [
+        "mini_dataset/Cassava/Class39_100_jpg.rf.5d4750dc83107bc771a39c263753f2d1.jpg",
+        "mini_dataset/Cassava/Class39_100_jpg.rf.7b04fe8557606f68a283e1bdd7230d3d.jpg",
+        "mini_dataset/Cassava/Class39_100_jpg.rf.c4ec5fea55bfd2f57d6473cb5e90acbd.jpg"
+    ],
+    "Chili Pepper": [
+        "mini_dataset/Chili Pepper/Class19_100_jpg.rf.4d4b024c70d9cab5d3a31727bf6a5c48.jpg",
+        "mini_dataset/Chili Pepper/Class19_100_jpg.rf.9bae8f4afebbda872f1e9d7833f919cb.jpg",
+        "mini_dataset/Chili Pepper/Class19_100_jpg.rf.e7a5890b52e62bb6d7fcf00c06ebe535.jpg"
+    ],
+    "Fukien Tea Tree": [
+        "mini_dataset/Fukien Tea Tree/Class16_102_jpg.rf.07955a92760e4efc01de601f398c2f9b.jpg",
+        "mini_dataset/Fukien Tea Tree/Class16_102_jpg.rf.6b5d615b84e922a8fd534e32a8cf76c5.jpg",
+        "mini_dataset/Fukien Tea Tree/Class16_102_jpg.rf.7b31264f3b30a2916dfdd0410e13ed99.jpg"
+    ],
+    "Gotu Kola": [
+        "mini_dataset/Gotu Kola/Class9_100_jpg.rf.0fc702675f61d7d6f2f93c5d3abd5b81.jpg",
+        "mini_dataset/Gotu Kola/Class9_100_jpg.rf.e1bfc4fc775cd6eda868596f44123d48.jpg",
+        "mini_dataset/Gotu Kola/Class9_100_jpg.rf.e440ca73877974eeba0e6da060646902.jpg"
+    ],
+    "Guava": [
+        "mini_dataset/Guava/Class2_101_jpg.rf.43148dd69db848d0260d606840a4e567.jpg",
+        "mini_dataset/Guava/Class2_101_jpg.rf.509eb62cdbf86a66dfe3d66fb28ce9c9.jpg",
+        "mini_dataset/Guava/Class2_101_jpg.rf.9aef0edb73c2791577acf1cc5a604bc9.jpg"
+    ],
+    "Gumamela": [
+        "mini_dataset/Gumamela/20230128_101256_jpg.rf.1917df773a3eb6dea8a9947763727657.jpg",
+        "mini_dataset/Gumamela/20230128_101258_jpg.rf.02c773ba42ff0cdde3ca52a1a9b0438d.jpg",
+        "mini_dataset/Gumamela/20230128_101300_jpg.rf.caa803b64bc0f5b99d0d96d88fe48c59.jpg"
+    ],
+    "Ipil-Ipil": [
+        "mini_dataset/Ipil-Ipil/Class37_10_jpg.rf.0fbf84ed7309103bbd687ca9a5ecee27.jpg",
+        "mini_dataset/Ipil-Ipil/Class37_10_jpg.rf.338a64a52481eef392b2096d28b2e3a6.jpg",
+        "mini_dataset/Ipil-Ipil/Class37_10_jpg.rf.e38729ec1597caf3ce16aa771f119c8d.jpg"
+    ],
+    "Kakawate": [
+        "mini_dataset/Kakawate/Class30_103_jpg.rf.0cf50dc64cc8d3057231ace327ce0c79.jpg",
+        "mini_dataset/Kakawate/Class30_103_jpg.rf.bb7157ce8d5abfc90ed672717bc41e9a.jpg",
+        "mini_dataset/Kakawate/Class30_103_jpg.rf.d1a98f731440b7dfc7ad08f7539129d8.jpg"
+    ],
+    "Kamias": [
+        "mini_dataset/Kamias/Class26_100_jpg.rf.17db86b7019d02d8744f60308dd8d9b2.jpg",
+        "mini_dataset/Kamias/Class26_100_jpg.rf.a87562ffe8ed780e05dc4882e580d235.jpg",
+        "mini_dataset/Kamias/Class26_100_jpg.rf.e0f073160a68cbdd883d53d7c7ffee37.jpg"
+    ],
+    "Lagundi": [
+        "mini_dataset/Lagundi/Class4_100_jpg.rf.0a7442f40b3bd96b61ff757d83bd19c7.jpg",
+        "mini_dataset/Lagundi/Class4_100_jpg.rf.7306aaae98026947ba0d5b3a145bb404.jpg",
+        "mini_dataset/Lagundi/Class4_100_jpg.rf.be075d1fed0046e736a1d0a031c51d51.jpg"
+    ],
+    "Mango": [
+        "mini_dataset/Mango/Class32_100_jpg.rf.09ff05a48902586dfd623ffd08dc5d2c.jpg",
+        "mini_dataset/Mango/Class32_100_jpg.rf.57b62f9d21c8fb0498123ea823a01e21.jpg",
+        "mini_dataset/Mango/Class32_100_jpg.rf.be217745b7083f43e5efd1723f40c0fd.jpg"
+    ],
+    "Mayana": [
+        "mini_dataset/Mayana/Class10_100_jpg.rf.82e4d3a46e03f74bce0b381211d01a42.jpg",
+        "mini_dataset/Mayana/Class10_100_jpg.rf.940d44f403a7c55084956c6208810ce6.jpg",
+        "mini_dataset/Mayana/Class10_100_jpg.rf.ced4cacdb7903e65489f15fe3e2dc43e.jpg"
+    ],
+    "Mint": [
+        "mini_dataset/Mint/Class18_100_jpg.rf.1eb75f14252626901cc94eb3e5583d31.jpg",
+        "mini_dataset/Mint/Class18_100_jpg.rf.62d3a939739ef44e13baa8d41d0fcb74.jpg",
+        "mini_dataset/Mint/Class18_100_jpg.rf.a037f188e2f3614c1a4a7efbe84b6e51.jpg"
+    ],
+    "Moringa": [
+        "mini_dataset/Moringa/Class5_100_jpg.rf.7243674f3b6956bbe51b900ef22128f5.jpg",
+        "mini_dataset/Moringa/Class5_100_jpg.rf.b067faaf79cf5cf966f26ee1df8547fc.jpg",
+        "mini_dataset/Moringa/Class5_100_jpg.rf.e8bd035612d5c55b258b09eb29b145b1.jpg"
+    ],
+    "Oleander": [
+        "mini_dataset/Oleander/Class22_100_jpg.rf.060500e3422ead99e4c99067b238bdcf.jpg",
+        "mini_dataset/Oleander/Class22_100_jpg.rf.4813d9d51baebb65655a2347a29e1ed2.jpg",
+        "mini_dataset/Oleander/Class22_100_jpg.rf.f9a53728b5cb0ae87efb43cfd7c687d1.jpg"
+    ],
+    "Orange": [
+        "mini_dataset/Orange/Class31_100_jpg.rf.27836b2d1f8d0e5128914123efc22e22.jpg",
+        "mini_dataset/Orange/Class31_100_jpg.rf.39555fcc8be8437c3135861e410e1f2f.jpg",
+        "mini_dataset/Orange/Class31_100_jpg.rf.67d66a13f1c0661092babd05918d0e7f.jpg"
+    ],
+    "Oregano": [
+        "mini_dataset/Oregano/1364684f3b98be067bb7397708e908d0_jpg.rf.a480c7c31bc9c1eb69cd85e8c7f27a31.jpg",
+        "mini_dataset/Oregano/13a73ac1068cdb2727e0f29d2dfde94a_jpg.rf.a2a2a46824aa0e45817f2570d4dc97d6.jpg",
+        "mini_dataset/Oregano/1882f2d69a5dae5ff44dc32e5df8fd73_jpg.rf.d42425d2026d80cb35b5dc488f1c8466.jpg"
+    ],
+    "Pandan": [
+        "mini_dataset/Pandan/Class23_104_jpg.rf.a7a175d814713914b7e6e60cc4c9d4ab.jpg",
+        "mini_dataset/Pandan/Class23_104_jpg.rf.defb2dafcd5bd03fa1de83048fd90392.jpg",
+        "mini_dataset/Pandan/Class23_104_jpg.rf.f8ec80b4f6e5541ebabdeca593d45779.jpg"
+    ],
+    "Peanut": [
+        "mini_dataset/Peanut/Class35_101_png.rf.02097234821c0826252778a4a7292c53.jpg",
+        "mini_dataset/Peanut/Class35_101_png.rf.91986391f9f10fb8a7a91a485387ce7e.jpg",
+        "mini_dataset/Peanut/Class35_101_png.rf.ba65c91dd1b52c1b06eefbd41236d8c5.jpg"
+    ],
+    "Pomelo": [
+        "mini_dataset/Pomelo/Class40_100_jpg.rf.31681a119e48b41d60f2591841dd55f5.jpg",
+        "mini_dataset/Pomelo/Class40_100_jpg.rf.479af22a018d01433e568c5d2f87ce78.jpg",
+        "mini_dataset/Pomelo/Class40_100_jpg.rf.e1acd79649fae16bbcedf5f2cf64000e.jpg"
+    ],
+    "Rose Balsam": [
+        "mini_dataset/Rose Balsam/Classs34_100_png.rf.39c04f7fb48534213d6d2308b61ac0d1.jpg",
+        "mini_dataset/Rose Balsam/Classs34_100_png.rf.7d1f4f435bbfce73711707b9628f3046.jpg",
+        "mini_dataset/Rose Balsam/Classs34_100_png.rf.c1b79024ac72d8cd1753dcfd321b68d7.jpg"
+    ],
+    "Saluyot": [
+        "mini_dataset/Saluyot/Class12_101_jpg.rf.40f776cc708a259fdb21af2c05d4fb4b.jpg",
+        "mini_dataset/Saluyot/Class12_101_jpg.rf.e7a70a69109585054c807e9d309c9eb5.jpg",
+        "mini_dataset/Saluyot/Class12_101_jpg.rf.eb340e971f5cb7592fccdb6ac8d876ab.jpg"
+    ],
+    "Sambong": [
+        "mini_dataset/Sambong/0d03bec5cf01122b9c854454e052ec1c22f3de70_jpg.rf.dd0757925e9ecfc520192183e06645f3.jpg",
+        "mini_dataset/Sambong/100-natural-pure-sambong-powder-organic-non-gmo-150g-481876_1024x1024-2x_jpg.rf.6c6e962a616880a99a134181a500359b.jpg",
+        "mini_dataset/Sambong/100-natural-pure-sambong-powder-organic-non-gmo-150g-491820_1024x1024-2x_jpg.rf.6cdcf5ff7201d926182981a5581cc4f1.jpg"
+    ],
+    "Soursop": [
+        "mini_dataset/Soursop/Class27_100_jpg.rf.85da06907eb1aee1b1c5c5d6149d7a43.jpg",
+        "mini_dataset/Soursop/Class27_100_jpg.rf.d6bee5d5667176cfd29e4607106d495b.jpg",
+        "mini_dataset/Soursop/Class27_100_jpg.rf.f24310cfdfdd5eb57133a55ec032f1f3.jpg"
+    ],
+    "Stonebreaker": [
+        "mini_dataset/Stonebreaker/Class11_100_jpg.rf.37319c5a6ae68086784f36bf53359434.jpg",
+        "mini_dataset/Stonebreaker/Class11_100_jpg.rf.44a34323bd24627f02bbb1d20fa7f2b9.jpg",
+        "mini_dataset/Stonebreaker/Class11_100_jpg.rf.c478803e07ebcf8999cfe000829e54aa.jpg"
+    ],
+    "Sweet Basil": [
+        "mini_dataset/Sweet Basil/Class21_100_jpg.rf.0d7556f5f220f642f702c5c5db66ce49.jpg",
+        "mini_dataset/Sweet Basil/Class21_100_jpg.rf.1ef9a9c29fb1297b1397414d9b772dca.jpg",
+        "mini_dataset/Sweet Basil/Class21_100_jpg.rf.b7c926453c7e5a1981de8cba10d479a1.jpg"
+    ],
+    "Sweet Potato": [
+        "mini_dataset/Sweet Potato/Class38_102_jpg.rf.603cdcf39d82d79a0f0c67894a293d4b.jpg",
+        "mini_dataset/Sweet Potato/Class38_102_jpg.rf.a951bbfd959a9e3dce35751428001495.jpg",
+        "mini_dataset/Sweet Potato/Class38_102_jpg.rf.b85335900d4991b8c2c33586b956ad11.jpg"
+    ],
+    "Tamarind": [
+        "mini_dataset/Tamarind/Class36_100_jpg.rf.744ab2b160b3e49ae7d1b116c29772f9.jpg",
+        "mini_dataset/Tamarind/Class36_100_jpg.rf.b78cedd639f490c6ad18981e11d8e645.jpg",
+        "mini_dataset/Tamarind/Class36_100_jpg.rf.bb1a1d6c49dab24d06f33027f1fd537e.jpg"
+    ],
+    "Tawa-Tawa": [
+        "mini_dataset/Tawa-Tawa/2229213_jpg.rf.9a000a7c4d8cce4849f2c04ae33cb4a5.jpg",
+        "mini_dataset/Tawa-Tawa/Class14_100_jpg.rf.348d5d161419891215114cf96f2dff09.jpg",
+        "mini_dataset/Tawa-Tawa/Class14_100_jpg.rf.3fa01c527154e209c306042fccca22bd.jpg"
+    ],
+    "Tuba-Tuba": [
+        "mini_dataset/Tuba-Tuba/Class20_100_jpg.rf.006ff3d28645b0e88f9d57600b3c2b2d.jpg",
+        "mini_dataset/Tuba-Tuba/Class20_100_jpg.rf.17a49334f31bd0c4cfbe342e96dd956c.jpg",
+        "mini_dataset/Tuba-Tuba/Class20_100_jpg.rf.5372b1542676681b80ca69d1ffdbe846.jpg"
+    ],
+    "Turmeric": [
+        "mini_dataset/Turmeric/Class15_100_jpg.rf.59a505b62bfcfe14e3fc37a1a2e7829a.jpg",
+        "mini_dataset/Turmeric/Class15_100_jpg.rf.a1dcd7fb9716be2c19eaad640388810f.jpg",
+        "mini_dataset/Turmeric/Class15_100_jpg.rf.d4e3dadcaf9bbb7c732ed27d7a57fe0c.jpg"
+    ],
+    "Ulasimang Bato": [
+        "mini_dataset/Ulasimang Bato/Class8_100_jpg.rf.77d4350a1bf8869560b493f4aa782297.jpg",
+        "mini_dataset/Ulasimang Bato/Class8_100_jpg.rf.7ccc009b51e29ef1c12f72739b64972e.jpg",
+        "mini_dataset/Ulasimang Bato/Class8_100_jpg.rf.9679dbc35f198e61864c69412ae52df2.jpg"
+    ]
+}

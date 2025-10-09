@@ -39,14 +39,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
       final testPath = _all.first.assetImages.first;
       // Print the path we will try to load
       // ignore: avoid_print
-      print('[LibraryDebug] First asset path: ' + testPath);
+      print('[LibraryDebug] First asset path: $testPath');
       try {
         await rootBundle.load(testPath);
         // ignore: avoid_print
-        print('[LibraryDebug] Asset found in bundle: ' + testPath);
+        print('[LibraryDebug] Asset found in bundle: $testPath');
       } catch (e) {
         // ignore: avoid_print
-        print('[LibraryDebug] Asset NOT found in bundle: ' + testPath + ' -> ' + e.toString());
+        print('[LibraryDebug] Asset NOT found in bundle: $testPath -> $e');
         // Extra: inspect AssetManifest.json for mini_dataset entries
         try {
           final manifestRaw = await rootBundle.loadString('AssetManifest.json');
@@ -54,17 +54,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
           final Map<String, dynamic> manifest = (json.decode(manifestRaw) as Map).cast<String, dynamic>();
           final keys = manifest.keys.where((k) => k.startsWith('assets/images/mini_dataset/')).toList()..sort();
           // ignore: avoid_print
-          print('[LibraryDebug] Manifest mini_dataset count: ' + keys.length.toString());
+          print('[LibraryDebug] Manifest mini_dataset count: ${keys.length}');
           for (var i = 0; i < (keys.length < 5 ? keys.length : 5); i++) {
             // ignore: avoid_print
-            print('[LibraryDebug] Sample key ' + i.toString() + ': ' + keys[i]);
+            print('[LibraryDebug] Sample key $i: ${keys[i]}');
           }
           final hasExact = keys.contains(testPath);
           // ignore: avoid_print
-          print('[LibraryDebug] Manifest contains exact testPath: ' + hasExact.toString());
+          print('[LibraryDebug] Manifest contains exact testPath: $hasExact');
         } catch (e2) {
           // ignore: avoid_print
-          print('[LibraryDebug] Failed to read AssetManifest.json: ' + e2.toString());
+          print('[LibraryDebug] Failed to read AssetManifest.json: $e2');
         }
       }
     } else {
@@ -283,22 +283,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           ),
                         ),
                       ),
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.favorite_outline,
-                          size: 16,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),

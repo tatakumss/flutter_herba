@@ -44,6 +44,12 @@ class PlantLibraryService {
     final raw = await rootBundle.loadString('assets/plants.json');
     final decoded = json.decode(raw);
 
+    // Prefer building from AssetManifest if mini_dataset assets are present.
+    final manifestItems = await _tryLoadFromAssetManifest();
+    if (manifestItems != null && manifestItems.isNotEmpty) {
+      return manifestItems;
+    }
+
     // Case 1: original schema: List<Map<String,dynamic>>
     if (decoded is List) {
       return decoded.map<PlantItem>((e) => PlantItem.fromJson((e as Map).cast<String, dynamic>())).toList();
@@ -64,9 +70,9 @@ class PlantLibraryService {
       String norm(String p) {
         String path = p.replaceAll('\\', '/');
         if (path.startsWith('assets/')) return path;
-        if (path.startsWith('mini_dataset/')) return 'assets/images/' + path;
-        if (path.startsWith('images/')) return 'assets/' + path;
-        return 'assets/images/' + path;
+        if (path.startsWith('mini_dataset/')) return 'assets/images/$path';
+        if (path.startsWith('images/')) return 'assets/$path';
+        return 'assets/images/$path';
       }
 
       // Optional metadata: descriptions and uses
@@ -99,6 +105,61 @@ class PlantLibraryService {
 
     // Fallback
     return const <PlantItem>[];
+  }
+
+  Future<List<PlantItem>?> _tryLoadFromAssetManifest() async {
+    try {
+      final manifestRaw = await rootBundle.loadString('AssetManifest.json');
+      final Map<String, dynamic> manifest = (json.decode(manifestRaw) as Map).cast<String, dynamic>();
+      final keys = manifest.keys.where((k) => k.startsWith('assets/images/mini_dataset/')).toList();
+      if (keys.isEmpty) return null;
+
+      // Optional metadata
+      Map<String, dynamic> meta = const {};
+      try {
+        final metaRaw = await rootBundle.loadString('assets/plant_metadata.json');
+        meta = (json.decode(metaRaw) as Map).cast<String, dynamic>();
+      } catch (_) {}
+
+      Color colorFor(String name) {
+        final h = name.codeUnits.fold<int>(0, (a, b) => (a * 131 + b) & 0xFFFFFFFF);
+        final r = 0x40 + (h & 0x3F);
+        final g = 0x80 + ((h >> 6) & 0x3F);
+        final b = 0x40 + ((h >> 12) & 0x3F);
+        return Color(0xFF000000 | (r << 16) | (g << 8) | b);
+      }
+
+      // Group assets by class folder: assets/images/mini_dataset/<Class>/...
+      final Map<String, List<String>> grouped = {};
+      for (final path in keys) {
+        final parts = path.split('/');
+        if (parts.length < 5) continue; // assets / images / mini_dataset / <Class> / <file>
+        final className = parts[3]; // index 3 is the <Class>
+        grouped.putIfAbsent(className, () => []).add(path);
+      }
+
+      final items = <PlantItem>[];
+      grouped.forEach((name, paths) {
+        final metaEntry = meta[name] as Map?;
+        final desc = metaEntry == null ? ' ' : (metaEntry['description'] ?? ' ').toString();
+        final uses = ((metaEntry?['uses'] as List?) ?? const []).map((e) => e.toString()).toList();
+        items.add(PlantItem(
+          name: name,
+          category: 'Herb',
+          description: desc,
+          uses: uses,
+          tags: const [],
+          color: colorFor(name),
+          assetImages: paths..sort(),
+        ));
+      });
+
+      // Sort by name for consistency
+      items.sort((a, b) => a.name.compareTo(b.name));
+      return items;
+    } catch (_) {
+      return null;
+    }
   }
 
   List<PlantItem> search(List<PlantItem> all, String query, {String? category}) {

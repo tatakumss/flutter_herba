@@ -77,7 +77,48 @@ flutter:
   assets:
     - assets/models/
     - assets/plants.json
+    - assets/plant_metadata.json
     - assets/images/
+    - assets/images/mini_dataset/
+    - assets/images/mini_dataset/Akapulko/
+    - assets/images/mini_dataset/Alagaw/
+    - assets/images/mini_dataset/Aloe Vera/
+    - assets/images/mini_dataset/Banaba/
+    - assets/images/mini_dataset/Bignay/
+    - assets/images/mini_dataset/Bitter Melon/
+    - assets/images/mini_dataset/Calamansi/
+    - assets/images/mini_dataset/Cassava/
+    - assets/images/mini_dataset/Chili Pepper/
+    - assets/images/mini_dataset/Fukien Tea Tree/
+    - assets/images/mini_dataset/Gotu Kola/
+    - assets/images/mini_dataset/Guava/
+    - assets/images/mini_dataset/Gumamela/
+    - assets/images/mini_dataset/Ipil-Ipil/
+    - assets/images/mini_dataset/Kakawate/
+    - assets/images/mini_dataset/Kamias/
+    - assets/images/mini_dataset/Lagundi/
+    - assets/images/mini_dataset/Mango/
+    - assets/images/mini_dataset/Mayana/
+    - assets/images/mini_dataset/Mint/
+    - assets/images/mini_dataset/Moringa/
+    - assets/images/mini_dataset/Oleander/
+    - assets/images/mini_dataset/Orange/
+    - assets/images/mini_dataset/Oregano/
+    - assets/images/mini_dataset/Pandan/
+    - assets/images/mini_dataset/Peanut/
+    - assets/images/mini_dataset/Pomelo/
+    - assets/images/mini_dataset/Rose Balsam/
+    - assets/images/mini_dataset/Saluyot/
+    - assets/images/mini_dataset/Sambong/
+    - assets/images/mini_dataset/Soursop/
+    - assets/images/mini_dataset/Stonebreaker/
+    - assets/images/mini_dataset/Sweet Basil/
+    - assets/images/mini_dataset/Sweet Potato/
+    - assets/images/mini_dataset/Tamarind/
+    - assets/images/mini_dataset/Tawa-Tawa/
+    - assets/images/mini_dataset/Tuba-Tuba/
+    - assets/images/mini_dataset/Turmeric/
+    - assets/images/mini_dataset/Ulasimang Bato/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
