@@ -277,17 +277,39 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                             );
                             return;
                           }
-                          await _collections.saveScan(
-                            plantName: _lastLabel,
-                            confidence: _lastConfidence,
-                          );
+                          
+                          // Create comprehensive plant data like the results section
+                          final imgB64 = _previewBytes != null ? convert.base64Encode(_previewBytes!) : null;
+                          final cands = _lastCandidates.map((c) => {
+                            'label': c['label'] ?? 'Unknown',
+                            'score': c['score'] ?? 0.0,
+                          }).toList();
+                          
+                          final plantData = {
+                            'plantName': _lastLabel,
+                            'imageData': imgB64,
+                            'isFavorite': false,
+                            'confidence': _lastConfidence,
+                            'isOod': (_oodReason == 'HUMAN_DETECTED' || _oodReason == 'NON_PLANT_VISUAL' || _oodReason == 'STATISTICAL_OOD'),
+                            'oodReason': _oodReason,
+                            'oodScore': _oodScore,
+                            'candidates': cands,
+                            'scannedAt': DateTime.now().toIso8601String(),
+                          };
+                          
+                          final success = await _collections.addToCollection(plantData);
                           if (!mounted) return;
+                          
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Collection saving not available - cloud backend removed'),
-                              backgroundColor: Colors.orange,
+                            SnackBar(
+                              content: Text(success ? 'Saved to collection' : 'Save failed'),
+                              backgroundColor: success ? Colors.green : Colors.red,
                             ),
                           );
+                          
+                          if (success) {
+                            setState(() { _savedToCollection = true; });
+                          }
                         } catch (e) {
                           if (!mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -926,7 +948,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
         _lastCandidates = candidates;
         
         // Save scan result to database and get scan ID for potential reports
-        _currentScanId = await _scanService.saveScanResult(
+        _currentScanId = await _scanService.saveScan(
           plantName: label,
           confidence: hardOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : score),
           isOod: hardOod,
@@ -1447,7 +1469,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                                 );
                               } else {
                                 // Fallback: create scan first, then report
-                                final scanId = await _scanService.saveScanResult(
+                                final scanId = await _scanService.saveScan(
                                   plantName: _lastLabel,
                                   confidence: _lastConfidence,
                                   isOod: _lastIsOod,

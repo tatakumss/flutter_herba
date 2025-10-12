@@ -78,28 +78,6 @@ class ScanService {
     }
   }
 
-  /// Save scan result (alternative method name)
-  Future<String?> saveScanResult({
-    required String plantName,
-    required double confidence,
-    required bool isOod,
-    required List<Map<String, dynamic>> candidates,
-    String? oodReason,
-    double? oodScore,
-    File? imageFile,
-    Uint8List? imageBytes,
-  }) async {
-    return saveScan(
-      plantName: plantName,
-      confidence: confidence,
-      isOod: isOod,
-      candidates: candidates,
-      oodReason: oodReason,
-      oodScore: oodScore,
-      imageFile: imageFile,
-      imageBytes: imageBytes,
-    );
-  }
 
   /// Get all scans for current user
   Future<List<Map<String, dynamic>>> getScans() async {
@@ -133,27 +111,6 @@ class ScanService {
     }
   }
 
-  /// Get user's recent scans
-  Future<List<Map<String, dynamic>>> getUserScans({int limit = 20}) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return [];
-
-      final scans = await _firestoreService.getUserScans(user.uid, limit: limit);
-      return scans.map((scan) => {
-        'id': scan.id,
-        'plantName': scan.plantName,
-        'confidence': scan.confidence,
-        'imageUrl': scan.imageUrl,
-        'scannedAt': scan.scannedAt.toIso8601String(),
-        'isIdentified': scan.isIdentified,
-        'candidates': scan.candidates?.map((c) => c.toMap()).toList() ?? [],
-        'additionalData': scan.additionalData,
-      }).toList();
-    } catch (e) {
-      return [];
-    }
-  }
 
   /// Get scan statistics for current user
   Future<Map<String, dynamic>> getScanStats() async {

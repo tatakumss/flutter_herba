@@ -1,8 +1,9 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
-import '../config/app_config.dart';
 import '../services/scan_history_service.dart';
+import '../config/app_config.dart';
+import '../utils/date_formatter.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -44,24 +45,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
   }
 
-  String _formatDateTime(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-    String dateLabel;
-    if (diff.inDays == 0) {
-      dateLabel = 'Today';
-    } else if (diff.inDays == 1) {
-      dateLabel = 'Yesterday';
-    } else if (diff.inDays < 7) {
-      dateLabel = '${diff.inDays} days ago';
-    } else {
-      dateLabel = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-    }
-    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-    final ampm = dt.hour >= 12 ? 'PM' : 'AM';
-    final timeLabel = '$hour:${dt.minute.toString().padLeft(2, '0')} $ampm';
-    return '$dateLabel • $timeLabel';
-  }
 
   void _showTop3(ScanEntry scan) {
     final theme = Theme.of(context);
@@ -523,7 +506,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      _formatDateTime(scan.timestamp),
+                      DateFormatter.formatDateTime(scan.timestamp),
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],

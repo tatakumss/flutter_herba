@@ -3,10 +3,12 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import '../config/app_config.dart';
-import 'plant_screen.dart';
-import '../services/plant_library_service.dart';
-import 'plant_detail_screen.dart';
 import '../services/collection_service.dart';
+import '../services/plant_library_service.dart';
+import '../utils/date_formatter.dart';
+import 'collections_screen.dart';
+import 'plant_detail_screen.dart';
+import 'plant_screen.dart';
 import '../services/popularity_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -169,8 +171,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   TextButton(
                     onPressed: () {
-                      // Navigate to full collections screen
-                      // You can implement this later
+                      // Navigate to Collections screen to view all collections
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const CollectionsScreen(),
+                        ),
+                      );
                     },
                     child: Text(
                       "View All",
@@ -562,14 +568,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showCollectionDetail(BuildContext context, Map<String, dynamic> collection) {
-    final info = (collection['plantInfo'] as Map<String, dynamic>?) ?? {};
+    final plantInfo = collection['plantInfo'] as Map<String, dynamic>?;
     final name = (collection['plantName']?.toString() ?? 'Unknown').trim().isNotEmpty
         ? collection['plantName'].toString()
         : 'Unknown';
-    final confidence = (info['confidence'] is num) ? (info['confidence'] as num).toDouble() : 0.0;
-    final isOod = (info['isOod'] as bool?) ?? false;
-    final scanDate = collection['scanDate'] as String? ?? 'Unknown date';
-    final candidates = (info['candidates'] as List?) ?? [];
+    final confidence = (plantInfo?['confidence'] is num) ? (plantInfo!['confidence'] as num).toDouble() : 0.0;
+    final isOod = (plantInfo?['isOod'] as bool?) ?? false;
+    final oodReason = plantInfo?['oodReason']?.toString();
+    final oodScore = plantInfo?['oodScore'] as double?;
+    final addedAt = DateTime.tryParse(collection['addedAt']?.toString() ?? '') ?? DateTime.now();
+    final candidates = (plantInfo?['candidates'] as List?) ?? [];
     
     showDialog(
       context: context,
@@ -615,7 +623,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       IconButton(
                         onPressed: () => _removeFromCollection(context, collection),
-                        icon: const Icon(Icons.remove_circle, color: Colors.white),
+                        icon: const Icon(Icons.delete_rounded, color: Colors.white),
                       ),
                     ],
                   ),
@@ -698,15 +706,38 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 16),
                         
+                        // Scan Details Section
+                        Text(
+                          'Scan Details:',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).textTheme.titleMedium?.color,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        
                         // Scan date
-                        _buildInfoRow('Scan Date', scanDate),
-                        const SizedBox(height: 12),
+                        _buildInfoRow('Added', DateFormatter.formatRelativeDate(addedAt)),
+                        const SizedBox(height: 8),
                         
                         // Confidence details
                         if (!isOod) ...[
-                          _buildInfoRow('Confidence Level', '${(confidence * 100).toStringAsFixed(1)}%'),
-                          const SizedBox(height: 12),
+                          _buildInfoRow('Confidence', '${(confidence * 100).toInt()}%'),
+                          const SizedBox(height: 8),
+                        ] else ...[
+                          _buildInfoRow('Status', 'Uncertain identification'),
+                          const SizedBox(height: 8),
+                          if (oodReason != null) ...[
+                            _buildInfoRow('Reason', oodReason),
+                            const SizedBox(height: 8),
+                          ],
+                          if (oodScore != null) ...[
+                            _buildInfoRow('OOD Score', '${(oodScore * 100).toInt()}%'),
+                            const SizedBox(height: 8),
+                          ],
                         ],
+                        
                         
                         // Other candidates
                         if (candidates.isNotEmpty) ...[
@@ -720,8 +751,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 8),
                           ...candidates.take(3).map((candidate) {
-                            final candidateName = candidate['name'] ?? 'Unknown';
-                            final candidateConfidence = (candidate['confidence'] as num?)?.toDouble() ?? 0.0;
+                            final candidateName = candidate['label']?.toString() ?? 'Unknown';
+                            final candidateConfidence = (candidate['score'] as num?)?.toDouble() ?? 0.0;
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               child: Row(

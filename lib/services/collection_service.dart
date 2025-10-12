@@ -155,10 +155,6 @@ class CollectionService {
     }
   }
 
-  /// Get scans (for backward compatibility)
-  Future<List<Map<String, dynamic>>> getScans() async {
-    return await getCollections();
-  }
 
   /// Save scan (for backward compatibility)
   Future<Map<String, dynamic>> saveScan({
