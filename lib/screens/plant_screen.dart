@@ -1624,7 +1624,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                   Expanded(
                     child: Text(
                       // Only show plain 'Unknown' for HUMAN_DETECTED so the app presents just 'plants' or 'Unknown'.
-                      _oodReason == 'HUMAN_DETECTED'
+                      (_oodReason == 'HUMAN_DETECTED' || _oodReason == 'STATISTICAL_OOD')
                         ? 'Unknown'
                         : (
                             'Unknown${_oodReason != null ? ' (${_oodReason})' : ''}. ${_oodConf != null ? 'conf ${_oodConf!.toStringAsFixed(2)}  ' : ''}${_oodScore != null ? 'ood ${_oodScore!.toStringAsFixed(2)}  ' : ''}${_skinRatio != null ? 'skin ${_skinRatio!.toStringAsFixed(2)}  ' : ''}${_edgeDensity != null ? 'edge ${_edgeDensity!.toStringAsFixed(2)}  ' : ''}${_greenRatio != null ? 'green ${_greenRatio!.toStringAsFixed(2)}' : ''}'
