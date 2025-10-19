@@ -42,7 +42,7 @@ class _MainScreenState extends State<MainScreen> {
           color: Theme.of(context).cardColor,
           boxShadow: [
             BoxShadow(
-              color: isDark ? Colors.black.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.1),
+              color: AppConfig.getShadowColor(isDark),
               blurRadius: 20,
               offset: const Offset(0, -5),
             ),
@@ -53,34 +53,34 @@ class _MainScreenState extends State<MainScreen> {
           onDestinationSelected: _onItemTapped,
           backgroundColor: Colors.transparent,
           indicatorColor: isDark
-              ? const Color(0xFF81C784).withValues(alpha: 0.2)
+              ? AppConfig.getTitleColor(context).withValues(alpha: 0.2)
               : AppConfig.primaryColor.withValues(alpha: 0.1),
           indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           height: 70,
           destinations: [
             NavigationDestination(
               icon: const Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home, color: isDark ? const Color(0xFF81C784) : AppConfig.primaryColor),
+              selectedIcon: Icon(Icons.home, color: AppConfig.getTitleColor(context)),
               label: "Home",
             ),
             NavigationDestination(
               icon: const Icon(Icons.local_library_outlined),
-              selectedIcon: Icon(Icons.local_library, color: isDark ? const Color(0xFF81C784) : AppConfig.primaryColor),
+              selectedIcon: Icon(Icons.local_library, color: AppConfig.getTitleColor(context)),
               label: "Library",
             ),
             NavigationDestination(
               icon: const Icon(Icons.camera_alt_outlined),
-              selectedIcon: Icon(Icons.camera_alt, color: isDark ? const Color(0xFF81C784) : AppConfig.primaryColor),
+              selectedIcon: Icon(Icons.camera_alt, color: AppConfig.getTitleColor(context)),
               label: "Scan",
             ),
             NavigationDestination(
               icon: const Icon(Icons.history_outlined),
-              selectedIcon: Icon(Icons.history, color: isDark ? const Color(0xFF81C784) : AppConfig.primaryColor),
+              selectedIcon: Icon(Icons.history, color: AppConfig.getTitleColor(context)),
               label: "History",
             ),
             NavigationDestination(
               icon: const Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person, color: isDark ? const Color(0xFF81C784) : AppConfig.primaryColor),
+              selectedIcon: Icon(Icons.person, color: AppConfig.getTitleColor(context)),
               label: "Profile",
             ),
           ],

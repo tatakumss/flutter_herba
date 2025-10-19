@@ -4,16 +4,19 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'dart:convert' as convert;
 import '../config/app_config.dart';
+import '../utils/snackbar_utils.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
-import '../services/tflite_service.dart';
 import 'package:camera/camera.dart';
+import '../services/tflite_service.dart';
 import '../services/scan_history_service.dart';
 import '../services/ood_service.dart';
 import 'package:image/image.dart' as img;
 import '../services/collection_service.dart';
 import '../services/feedback_service.dart';
 import '../services/scan_service.dart';
+import '../widgets/feedback_action_button.dart';
+import '../widgets/app_text_field.dart';
 
 class PlantScreen extends StatefulWidget {
   const PlantScreen({super.key});
@@ -120,9 +123,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
     final ctrl = _cameraController;
     if (ctrl == null || !ctrl.value.isInitialized) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Camera not ready')),
-      );
+      SnackBarUtils.showWarning(context, 'Camera not ready');
       return;
     }
     try {
@@ -134,9 +135,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Flash not available: $e')),
-      );
+      SnackBarUtils.showError(context, 'Flash not available: $e');
     }
   }
 
@@ -211,7 +210,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
+            color: AppConfig.shadowColor.withValues(alpha: 0.12),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -254,223 +253,206 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.12),
+                          color: AppConfig.getSuccessWithOpacity(0.12),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
+                          border: Border.all(color: AppConfig.getSuccessWithOpacity(0.4)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: const [
-                            Icon(Icons.check_circle_outline, size: 16, color: Colors.green),
+                            Icon(Icons.check_circle_outline, size: 16, color: AppConfig.successColor),
                             SizedBox(width: 4),
-                            Text('Saved', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w700)),
+                            Text('Saved', style: TextStyle(color: AppConfig.successColor, fontWeight: FontWeight.w700)),
                           ],
                         ),
                       ),
                     const Spacer(),
-                    TextButton.icon(
-                      onPressed: () async {
-                        try {
-                          if (_previewBytes == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Nothing to save: capture or pick an image first.')),
-                            );
-                            return;
-                          }
-                          
-                          // Create comprehensive plant data like the results section
-                          final imgB64 = _previewBytes != null ? convert.base64Encode(_previewBytes!) : null;
-                          final cands = _lastCandidates.map((c) => {
-                            'label': c['label'] ?? 'Unknown',
-                            'score': c['score'] ?? 0.0,
-                          }).toList();
-                          
-                          final plantData = {
-                            'plantName': _lastLabel,
-                            'imageData': imgB64,
-                            'isFavorite': false,
-                            'confidence': _lastConfidence,
-                            'isOod': (_oodReason == 'HUMAN_DETECTED' || _oodReason == 'NON_PLANT_VISUAL' || _oodReason == 'STATISTICAL_OOD'),
-                            'oodReason': _oodReason,
-                            'oodScore': _oodScore,
-                            'candidates': cands,
-                            'scannedAt': DateTime.now().toIso8601String(),
-                          };
-                          
-                          final success = await _collections.addToCollection(plantData);
-                          if (!mounted) return;
-                          
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(success ? 'Saved to collection' : 'Save failed'),
-                              backgroundColor: success ? Colors.green : Colors.red,
-                            ),
-                          );
-                          
-                          if (success) {
-                            setState(() { _savedToCollection = true; });
-                          }
-                        } catch (e) {
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Save failed: $e')),
-                          );
+                  TextButton.icon(
+                    onPressed: () async {
+                      try {
+                        if (_previewBytes == null) {
+                          SnackBarUtils.showWarning(context, 'Nothing to save: capture or pick an image first.');
+                          return;
                         }
-                      },
-                      icon: const Icon(Icons.bookmark_add_outlined),
-                      label: const Text('Save to collection'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                LayoutBuilder(
-                  builder: (ctx, c) {
-                    final twoCols = c.maxWidth > 520;
-                    if (twoCols) {
-                      return Row(
-                        children: [
-                          Expanded(child: col('Mendeley', aTop, theme.colorScheme.primary)),
-                          const SizedBox(width: 12),
-                          Expanded(child: col('Kaggle', bTop, const Color(0xFF66BB6A))),
-                        ],
-                      );
-                    }
-                    return Column(
+                        
+                        // Create comprehensive plant data like the results section
+                        final imgB64 = _previewBytes != null ? convert.base64Encode(_previewBytes!) : null;
+                        final cands = _lastCandidates.map((c) => {
+                          'label': c['label'] ?? 'Unknown',
+                          'score': c['score'] ?? 0.0,
+                        }).toList();
+                        
+                        final plantData = {
+                          'plantName': _lastLabel,
+                          'imageData': imgB64,
+                          'isFavorite': false,
+                          'confidence': _lastConfidence,
+                          'isOod': (_oodReason == 'HUMAN_DETECTED' || _oodReason == 'NON_PLANT_VISUAL' || _oodReason == 'STATISTICAL_OOD'),
+                          'oodReason': _oodReason,
+                          'oodScore': _oodScore,
+                          'candidates': cands,
+                          'scannedAt': DateTime.now().toIso8601String(),
+                        };
+                        
+                        final success = await _collections.addToCollection(plantData);
+                        if (!mounted) return;
+                        
+                        if (success) {
+                          SnackBarUtils.showSuccess(context, 'Saved to collection');
+                        } else {
+                          SnackBarUtils.showError(context, 'Save failed');
+                        }
+                        
+                        if (success) {
+                          setState(() { _savedToCollection = true; });
+                        }
+                      } catch (e) {
+                        if (!mounted) return;
+                        SnackBarUtils.showError(context, 'Save failed: $e');
+                      }
+                    },
+                    icon: const Icon(Icons.bookmark_add_outlined),
+                    label: const Text('Save to collection'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              LayoutBuilder(
+                builder: (ctx, c) {
+                  final twoCols = c.maxWidth > 520;
+                  if (twoCols) {
+                    return Row(
                       children: [
-                        col('Mendeley', aTop, theme.colorScheme.primary),
-                        const SizedBox(height: 12),
-                        col('Kaggle', bTop, const Color(0xFF66BB6A)),
+                        Expanded(child: col('Mendeley', aTop, theme.colorScheme.primary)),
+                        const SizedBox(width: 12),
+                        Expanded(child: col('Kaggle', bTop, const Color(0xFF66BB6A))),
                       ],
                     );
-                  },
-                ),
-                const SizedBox(height: 8),
-                // Feedback actions (responsive)
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.spaceBetween,
-                  children: [
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(minWidth: 140, maxWidth: 220),
-                      child: TextButton.icon(
-                        onPressed: () => _showFeedbackModal('error'),
-                        icon: const Icon(Icons.report_problem_outlined, size: 16),
-                        label: const Text('Report Error', overflow: TextOverflow.ellipsis),
-                        style: TextButton.styleFrom(foregroundColor: Colors.orange[700]),
-                      ),
+                  }
+                  return Column(
+                    children: [
+                      col('Mendeley', aTop, theme.colorScheme.primary),
+                      const SizedBox(height: 12),
+                      col('Kaggle', bTop, const Color(0xFF66BB6A)),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+              // Feedback actions (responsive)
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: () => _showFeedbackModal('error'),
+                      icon: const Icon(Icons.report_problem_outlined, size: 16),
+                      label: const Text('Report Error', overflow: TextOverflow.ellipsis),
+                      style: TextButton.styleFrom(foregroundColor: AppConfig.reportErrorColor),
                     ),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(minWidth: 160, maxWidth: 260),
-                      child: TextButton.icon(
-                        onPressed: () => _showFeedbackModal('suggestion'),
-                        icon: const Icon(Icons.lightbulb_outline, size: 16),
-                        label: const Text('Suggest Improvement', overflow: TextOverflow.ellipsis),
-                        style: TextButton.styleFrom(foregroundColor: theme.colorScheme.primary),
-                      ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: () => _showFeedbackModal('suggestion'),
+                      icon: const Icon(Icons.lightbulb_outline, size: 16),
+                      label: const Text('Suggest Improvement', overflow: TextOverflow.ellipsis),
+                      style: TextButton.styleFrom(foregroundColor: theme.colorScheme.primary),
                     ),
-                  ],
-                ),
-              ],
-            ),
-            crossFadeState: _resultsCollapsed ? CrossFadeState.showFirst : CrossFadeState.showSecond,
-            duration: const Duration(milliseconds: 180),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
+          crossFadeState: _resultsCollapsed ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+          duration: const Duration(milliseconds: 180),
+        ),
+      ],
+    ),
+  );
+}
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+@override
+void dispose() {
+  WidgetsBinding.instance.removeObserver(this);
+  _tflite.dispose();
+  _tfliteB?.dispose();
+  _cameraController?.dispose();
+  super.dispose();
+}
+
+@override
+void didChangeAppLifecycleState(AppLifecycleState state) {
+  final ctrl = _cameraController;
+  if (ctrl == null) return;
+  if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+    // Release camera when app goes to background to avoid freezes on return
+    ctrl.dispose();
+    _cameraController = null;
+  } else if (state == AppLifecycleState.resumed) {
+    // Reinitialize camera when app resumes
+    _initCamera();
+  }
+}
+
+Future<void> _switchModel(String key) async {
+  if (_selectedModelKey == key) return;
+  setState(() { _selectedModelKey = key; _loading = true; _results = []; _error = null; });
+  try {
+    // Re-init TFLite with new assets
     _tflite.dispose();
     _tfliteB?.dispose();
-    _cameraController?.dispose();
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    final ctrl = _cameraController;
-    if (ctrl == null) return;
-    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
-      // Release camera when app goes to background to avoid freezes on return
-      ctrl.dispose();
-      _cameraController = null;
-    } else if (state == AppLifecycleState.resumed) {
-      // Reinitialize camera when app resumes
-      _initCamera();
+    await _initModel();
+    await _loadOodProfileForSelectedModel();
+    // Reset OOD state
+    _oodReason = null; _oodConf = null; _oodScore = null; _skinRatio = null; _edgeDensity = null; _greenRatio = null;
+    // Re-run classification on the last preview if available
+    if (_previewBytes != null) {
+      await _classify(_previewBytes!);
     }
+  } catch (e) {
+    if (!mounted) return;
+    setState(() { _error = 'Model switch failed: $e'; });
+    SnackBarUtils.showError(context, 'Model switch failed: $e');
+  } finally {
+    if (mounted) setState(() { _loading = false; });
   }
+}
 
-  Future<void> _switchModel(String key) async {
-    if (_selectedModelKey == key) return;
-    setState(() { _selectedModelKey = key; _loading = true; _results = []; _error = null; });
-    try {
-      // Re-init TFLite with new assets
-      _tflite.dispose();
-      _tfliteB?.dispose();
-      await _initModel();
-      await _loadOodProfileForSelectedModel();
-      // Reset OOD state
-      _oodReason = null; _oodConf = null; _oodScore = null; _skinRatio = null; _edgeDensity = null; _greenRatio = null;
-      // Re-run classification on the last preview if available
-      if (_previewBytes != null) {
-        await _classify(_previewBytes!);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() { _error = 'Model switch failed: $e'; });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Model switch failed: $e')),
+Future<void> _initModel() async {
+  try {
+    if (_selectedModelKey == 'combo') {
+      // Init primary as V1
+      final v1 = _modelOptions.firstWhere((m) => m['key'] == 'v1');
+      await _tflite.init(
+        modelAsset: v1['model']!,
+        labelsAsset: v1['labels']!,
+        extractorAsset: v1['extractor']!,
       );
-    } finally {
-      if (mounted) setState(() { _loading = false; });
-    }
-  }
-
-  Future<void> _initModel() async {
-    try {
-      if (_selectedModelKey == 'combo') {
-        // Init primary as V1
-        final v1 = _modelOptions.firstWhere((m) => m['key'] == 'v1');
-        await _tflite.init(
-          modelAsset: v1['model']!,
-          labelsAsset: v1['labels']!,
-          extractorAsset: v1['extractor']!,
-        );
-        // Init secondary as Kaggle
-        _tfliteB = TFLiteService.create();
-        final kaggle = _modelOptions.firstWhere((m) => m['key'] == 'kaggle');
-        await _tfliteB!.init(
-          modelAsset: kaggle['model']!,
-          labelsAsset: kaggle['labels']!,
-          extractorAsset: kaggle['extractor']!,
-        );
-      } else {
-        final cfg = _modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first);
-        await _tflite.init(
-          modelAsset: cfg['model']!,
-          labelsAsset: cfg['labels']!,
-          extractorAsset: cfg['extractor']!,
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      // Debug: surface the exact error in the console for troubleshooting
-      // ignore: avoid_print
-      print('TFLite init error: $e');
-      // Also show on UI so it's visible without console
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('TFLite init error: $e')),
+      // Init secondary as Kaggle
+      _tfliteB = TFLiteService.create();
+      final kaggle = _modelOptions.firstWhere((m) => m['key'] == 'kaggle');
+      await _tfliteB!.init(
+        modelAsset: kaggle['model']!,
+        labelsAsset: kaggle['labels']!,
+        extractorAsset: kaggle['extractor']!,
       );
-      setState(() { _error = 'Model or labels not found. Ensure assets/models/herbal_classifier.tflite and assets/models/class_labels.txt exist and are listed in pubspec.yaml.'; });
+    } else {
+      final cfg = _modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first);
+      await _tflite.init(
+        modelAsset: cfg['model']!,
+        labelsAsset: cfg['labels']!,
+        extractorAsset: cfg['extractor']!,
+      );
     }
+  } catch (e) {
+    if (!mounted) return;
+    SnackBarUtils.showError(context, 'TFLite init error: $e');
+    setState(() { _error = 'Model or labels not found. Ensure assets/models/herbal_classifier.tflite and assets/models/class_labels.txt exist and are listed in pubspec.yaml.'; });
   }
+}
 
-  Future<void> _loadOodProfileForSelectedModel() async {
-    try {
+Future<void> _loadOodProfileForSelectedModel() async {
+  try {
       if (_selectedModelKey == 'combo') {
         final mCfg = _modelOptions.firstWhere((m) => m['key'] == 'v1');
         final kCfg = _modelOptions.firstWhere((m) => m['key'] == 'kaggle');
@@ -1015,9 +997,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? const Color(0xFF81C784)
-                                  : AppConfig.primaryDark,
+                              color: AppConfig.getTitleColor(context),
                             ),
                           ),
                         ),
@@ -1054,7 +1034,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: AppConfig.shadowColor.withOpacity(0.1),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -1080,7 +1060,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: AppConfig.shadowColor.withOpacity(0.1),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -1150,7 +1130,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
+                                    color: AppConfig.shadowColor.withOpacity(0.1),
                                     blurRadius: 20,
                                     offset: const Offset(0, 8),
                                   ),
@@ -1159,7 +1139,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                               child: Icon(
                                 Icons.camera_alt,
                                 size: 64,
-                                color: Theme.of(context).colorScheme.primary,
+                                color: AppConfig.getTitleColor(context),
                               ),
                             ),
                             const SizedBox(height: 24),
@@ -1168,9 +1148,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? const Color(0xFF81C784)
-                                    : AppConfig.primaryDark,
+                                color: AppConfig.getTitleColor(context),
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -1216,7 +1194,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.4),
+                              color: AppConfig.shadowColor.withOpacity(0.4),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const CircularProgressIndicator(color: Colors.white),
@@ -1300,7 +1278,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.08),
+                                  color: AppConfig.shadowColor.withOpacity(0.08),
                                   blurRadius: 15,
                                   offset: const Offset(0, 4),
                                 ),
@@ -1334,7 +1312,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.08),
+                                  color: AppConfig.shadowColor.withOpacity(0.08),
                                   blurRadius: 15,
                                   offset: const Offset(0, 4),
                                 ),
@@ -1400,7 +1378,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                     children: [
                       Icon(
                         type == 'error' ? Icons.report_problem_outlined : Icons.lightbulb_outline,
-                        color: type == 'error' ? Colors.orange[700] : Theme.of(context).colorScheme.primary,
+                        color: type == 'error' ? AppConfig.reportErrorColor : Theme.of(context).colorScheme.primary,
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -1425,17 +1403,14 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  AppTextField.multiline(
                     controller: controller,
+                    hintText: type == 'error' 
+                        ? 'e.g., "The plant was identified as X but it\'s actually Y"'
+                        : 'e.g., "It would be great if the app could..."',
                     maxLines: 4,
                     maxLength: 500,
-                    decoration: InputDecoration(
-                      hintText: type == 'error' 
-                          ? 'e.g., "The plant was identified as X but it\'s actually Y"'
-                          : 'e.g., "It would be great if the app could..."',
-                      border: const OutlineInputBorder(),
-                      counterText: '',
-                    ),
+                    showCounter: false,
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -1504,7 +1479,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                                         ? 'Error report submitted. Thanks for helping us improve!'
                                         : 'Suggestion submitted. Thanks for your feedback!'
                                   ),
-                                  backgroundColor: Colors.green,
+                                  backgroundColor: AppConfig.successColor,
                                 ),
                               );
                             } else {
@@ -1512,7 +1487,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('Failed to submit feedback. Please try again.'),
-                                  backgroundColor: Colors.red,
+                                  backgroundColor: AppConfig.errorColor,
                                 ),
                               );
                             }
@@ -1524,7 +1499,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Error: $e'),
-                                backgroundColor: Colors.red,
+                                backgroundColor: AppConfig.errorColor,
                               ),
                             );
                           }
@@ -1576,7 +1551,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: AppConfig.shadowColor.withOpacity(0.12),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -1613,13 +1588,13 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               margin: const EdgeInsets.only(bottom: 8),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.12),
+                color: AppConfig.getWarningWithOpacity(0.12),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.withOpacity(0.4)),
+                border: Border.all(color: AppConfig.getWarningWithOpacity(0.4)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.report_gmailerrorred_outlined, color: Colors.orange, size: 18),
+                  Icon(Icons.report_gmailerrorred_outlined, color: AppConfig.warningColor, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1629,7 +1604,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                         : (
                             'Unknown${_oodReason != null ? ' (${_oodReason})' : ''}. ${_oodConf != null ? 'conf ${_oodConf!.toStringAsFixed(2)}  ' : ''}${_oodScore != null ? 'ood ${_oodScore!.toStringAsFixed(2)}  ' : ''}${_skinRatio != null ? 'skin ${_skinRatio!.toStringAsFixed(2)}  ' : ''}${_edgeDensity != null ? 'edge ${_edgeDensity!.toStringAsFixed(2)}  ' : ''}${_greenRatio != null ? 'green ${_greenRatio!.toStringAsFixed(2)}' : ''}'
                           ),
-                      style: theme.textTheme.bodyMedium?.copyWith(color: Colors.orange[800], fontWeight: FontWeight.w700),
+                      style: theme.textTheme.bodyMedium?.copyWith(color: AppConfig.warningColor, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],
@@ -1644,16 +1619,16 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   margin: const EdgeInsets.only(right: 8),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.12),
+                    color: AppConfig.getSuccessWithOpacity(0.12),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.withOpacity(0.4)),
+                    border: Border.all(color: AppConfig.getSuccessWithOpacity(0.4)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: const [
-                      Icon(Icons.check_circle_outline, size: 16, color: Colors.green),
+                      Icon(Icons.check_circle_outline, size: 16, color: AppConfig.successColor),
                       SizedBox(width: 4),
-                      Text('Saved', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w700)),
+                      Text('Saved', style: TextStyle(color: AppConfig.successColor, fontWeight: FontWeight.w700)),
                     ],
                   ),
                 ),
@@ -1714,7 +1689,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(ok ? 'Saved to collection' : 'Save failed'),
-                        backgroundColor: ok ? Colors.green : Colors.red,
+                        backgroundColor: ok ? AppConfig.successColor : AppConfig.errorColor,
                       ),
                     );
                     if (ok) {
@@ -1786,38 +1761,19 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
             ),
           if (!_resultsCollapsed) const SizedBox(height: 8),
           if (!_resultsCollapsed)
-            // Feedback Actions (responsive, avoids horizontal overflow)
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              alignment: WrapAlignment.spaceBetween,
+            // Feedback Actions (responsive layout)
+            Row(
               children: [
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 140, maxWidth: 220),
-                  child: TextButton.icon(
+                Expanded(
+                  child: FeedbackActionButton.error(
                     onPressed: () => _showFeedbackModal('error'),
-                    icon: const Icon(Icons.report_problem_outlined, size: 16),
-                    label: const Text(
-                      'Report Error',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.orange[700],
-                    ),
                   ),
                 ),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 160, maxWidth: 260),
-                  child: TextButton.icon(
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FeedbackActionButton.suggestion(
                     onPressed: () => _showFeedbackModal('suggestion'),
-                    icon: const Icon(Icons.lightbulb_outline, size: 16),
-                    label: const Text(
-                      'Suggest Improvement',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: theme.colorScheme.primary,
-                    ),
+                    color: theme.colorScheme.primary,
                   ),
                 ),
               ],

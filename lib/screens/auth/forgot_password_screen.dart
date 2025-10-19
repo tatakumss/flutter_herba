@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/app_text_field.dart';
+import '../../utils/snackbar_utils.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -36,24 +38,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       if (!mounted) return;
       
       // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password reset email sent! Check your inbox.'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      SnackBarUtils.showSuccess(context, 'Password reset email sent! Check your inbox.');
       
       // Navigate back to login
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: Colors.red,
-        ),
-      );
+      SnackBarUtils.showError(context, e.toString());
     } finally {
       if (mounted) {
         setState(() {
@@ -103,19 +95,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const SizedBox(height: 32),
                 
                 // Email field
-                TextFormField(
+                AppTextField.auth(
                   controller: _emailController,
+                  label: 'Email Address',
+                  prefixIcon: Icons.email_rounded,
                   keyboardType: TextInputType.emailAddress,
-                  enabled: !_isLoading,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Theme.of(context).colorScheme.surface,
-                  ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your email';
@@ -125,6 +109,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     }
                     return null;
                   },
+                  isRequired: true,
                 ),
                 
                 const SizedBox(height: 24),

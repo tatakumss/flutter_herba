@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../config/app_config.dart';
 import '../services/plant_library_service.dart';
+import '../widgets/app_text_field.dart';
 import 'plant_detail_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -16,6 +17,7 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> {
   final _service = PlantLibraryService();
+  final _searchController = TextEditingController();
   List<PlantItem> _all = [];
   String _query = '';
   bool _loading = true;
@@ -76,6 +78,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
   List<PlantItem> get _filtered => _service.search(_all, _query);
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
@@ -95,9 +103,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: (Theme.of(context).brightness == Brightness.dark)
-                              ? const Color(0xFF81C784)
-                              : AppConfig.primaryDark,
+                          color: AppConfig.getTitleColor(context),
                         ),
                       ),
                       const SizedBox.shrink(),
@@ -105,36 +111,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   ),
                   const SizedBox(height: 16),
                   // Search Bar
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 15,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.search, color: Theme.of(context).iconTheme.color?.withValues(alpha: 0.6), size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            onChanged: (v) => setState(() => _query = v),
-                            decoration: InputDecoration(
-                              isDense: true,
-                              hintText: 'Search plants...',
-                              border: InputBorder.none,
-                            ),
-                          ),
-                        ),
-                        Icon(Icons.tune, color: Theme.of(context).iconTheme.color?.withValues(alpha: 0.6), size: 20),
-                      ],
-                    ),
+                  AppTextField.search(
+                    controller: _searchController,
+                    hintText: 'Search plants...',
+                    onChanged: (v) => setState(() => _query = v),
                   ),
                 ],
               ),
@@ -317,9 +297,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: (Theme.of(context).brightness == Brightness.dark)
-                                ? const Color(0xFF81C784)
-                                : AppConfig.primaryDark,
+                            color: AppConfig.getTitleColor(context),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -350,7 +328,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         Icon(
                           Icons.arrow_forward_ios,
                           size: 14,
-                          color: Colors.grey[400],
+                          color: AppConfig.cancelColor,
                         ),
                       ],
                     ),

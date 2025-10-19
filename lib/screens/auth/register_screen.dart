@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/app_text_field.dart';
+import '../../utils/snackbar_utils.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -49,30 +51,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Navigator.pop(context);
           if (!context.mounted) return;
           // Inform the user on the previous screen
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Account created successfully! Please log in with your credentials.'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 4),
-            ),
-          );
+          SnackBarUtils.showSuccess(context, 'Account created successfully! Please log in with your credentials.');
         }
       } on String catch (errorMessage) {
         if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMessage),
-              backgroundColor: Colors.red,
-            ),
-          );
+          SnackBarUtils.showError(context, errorMessage);
       } catch (e) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarUtils.showError(context, e.toString());
       } finally {
         setState(() {
           _isLoading = false;
@@ -186,26 +172,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: Column(
                       children: [
                         // Name Field
-                        _buildModernTextField(
+                        AppTextField.auth(
                           controller: _nameController,
                           label: "Full Name",
-                          icon: Icons.person_rounded,
+                          prefixIcon: Icons.person_rounded,
+                          keyboardType: TextInputType.name,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter your name';
+                              return 'Please enter your full name';
+                            }
+                            if (value.length < 2) {
+                              return 'Name must be at least 2 characters';
                             }
                             return null;
                           },
-                          isDark: isDark,
+                          isRequired: true,
                         ),
                         
                         const SizedBox(height: 24),
                         
                         // Email Field
-                        _buildModernTextField(
+                        AppTextField.auth(
                           controller: _emailController,
                           label: "Email Address",
-                          icon: Icons.email_rounded,
+                          prefixIcon: Icons.email_rounded,
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -216,20 +206,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             }
                             return null;
                           },
-                          isDark: isDark,
+                          isRequired: true,
                         ),
                         
                         const SizedBox(height: 24),
                         
                         // Password Field
-                        _buildModernTextField(
+                        AppTextField.auth(
                           controller: _passwordController,
                           label: "Password",
-                          icon: Icons.lock_rounded,
+                          prefixIcon: Icons.lock_rounded,
                           obscureText: _obscurePassword,
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePassword ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                              _obscurePassword ? Icons.visibility : Icons.visibility_off,
                               color: AppConfig.primaryColor,
                             ),
                             onPressed: () {
@@ -247,20 +237,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             }
                             return null;
                           },
-                          isDark: isDark,
+                          isRequired: true,
                         ),
                         
                         const SizedBox(height: 24),
                         
                         // Confirm Password Field
-                        _buildModernTextField(
+                        AppTextField.auth(
                           controller: _confirmPasswordController,
                           label: "Confirm Password",
-                          icon: Icons.lock_outline_rounded,
+                          prefixIcon: Icons.lock_outline_rounded,
                           obscureText: _obscureConfirmPassword,
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscureConfirmPassword ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                              _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
                               color: AppConfig.primaryColor,
                             ),
                             onPressed: () {
@@ -278,7 +268,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             }
                             return null;
                           },
-                          isDark: isDark,
+                          isRequired: true,
                         ),
                         
                         const SizedBox(height: 32),
@@ -373,80 +363,4 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildModernTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-    bool obscureText = false,
-    Widget? suffixIcon,
-    String? Function(String?)? validator,
-    required bool isDark,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? Colors.grey[800]!.withOpacity(0.3) : Colors.grey[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.grey[700]! : Colors.grey[200]!,
-          width: 1,
-        ),
-      ),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        obscureText: obscureText,
-        style: TextStyle(
-          color: isDark ? Colors.white : Colors.black87,
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(
-            color: isDark ? Colors.grey[400] : Colors.grey[600],
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-          floatingLabelStyle: TextStyle(
-            color: AppConfig.primaryColor,
-            fontWeight: FontWeight.w600,
-          ),
-          prefixIcon: Container(
-            margin: const EdgeInsets.only(right: 12),
-            child: Icon(
-              icon,
-              color: AppConfig.primaryColor,
-              size: 22,
-            ),
-          ),
-          suffixIcon: suffixIcon,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: AppConfig.primaryColor,
-              width: 2,
-            ),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(
-              color: Colors.red,
-              width: 1,
-            ),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        ),
-        validator: validator,
-      ),
-    );
-  }
 }
