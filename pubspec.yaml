@@ -254,13 +254,13 @@ flutter_launcher_icons:
 
 # Splash Screen Configuration
 flutter_native_splash:
-  color: "#2E7D32"
+  color: "#FFFFFF"
   image: "assets/images/logoherba.png"
-  color_dark: "#1B5E20"
+  color_dark: "#FFFFFF"
   image_dark: "assets/images/logoherba.png"
   android_12:
     image: "assets/images/logoherba.png"
-    color: "#2E7D32"
+    color: "#FFFFFF"
     image_dark: "assets/images/logoherba.png"
-    color_dark: "#1B5E20"
+    color_dark: "#FFFFFF"
   web: false
