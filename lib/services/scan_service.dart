@@ -23,6 +23,13 @@ class ScanService {
     double? oodScore,
     File? imageFile,
     Uint8List? imageBytes,
+    // Strongly recommended fields for validation/dataset assessment
+    String? preferredDataset, // 'mendeley' | 'kaggle'
+    String? selectedLabel,
+    double? selectedConfidence,
+    double? mendeleyTop,
+    double? kaggleTop,
+    String? selectedFrom, // e.g., 'combo'
   }) async {
     try {
       final user = _auth.currentUser;
@@ -42,10 +49,12 @@ class ScanService {
         imageData = 'data:image/jpeg;base64,${base64Encode(imageBytes)}';
       }
 
-      // Convert candidates to PlantCandidate objects
+      // Convert candidates to PlantCandidate objects (support both name/confidence and label/score keys)
       final plantCandidates = candidates.map((c) => PlantCandidate(
-        name: c['name'] ?? '',
-        confidence: (c['confidence'] as num?)?.toDouble() ?? 0.0,
+        name: (c['name'] ?? c['label'] ?? '').toString(),
+        confidence: (c['confidence'] is num)
+            ? (c['confidence'] as num).toDouble()
+            : ((c['score'] is num) ? (c['score'] as num).toDouble() : 0.0),
         description: c['description'],
         metadata: c,
       )).toList();
@@ -62,6 +71,12 @@ class ScanService {
           'isOod': isOod,
           'oodReason': oodReason,
           'oodScore': oodScore,
+          if (preferredDataset != null) 'preferredDataset': preferredDataset,
+          if (selectedLabel != null) 'selectedLabel': selectedLabel,
+          if (selectedConfidence != null) 'selectedConfidence': selectedConfidence,
+          if (mendeleyTop != null) 'mendeleyTop': mendeleyTop,
+          if (kaggleTop != null) 'kaggleTop': kaggleTop,
+          if (selectedFrom != null) 'selectedFrom': selectedFrom,
         },
         isIdentified: !isOod && confidence > 0.5,
         candidates: plantCandidates,

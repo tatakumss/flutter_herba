@@ -37,6 +37,8 @@ class UserProfile {
     };
   }
 
+  
+
   // Create from Firestore document
   factory UserProfile.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -385,6 +387,27 @@ class FirestoreService {
           .collection(_collectionsCollection)
           .doc(itemId)
           .delete();
+    } catch (e) {
+      throw Exception(_handleFirestoreException(e));
+    }
+  }
+
+  // Remove all items from the current user's collection (batch delete)
+  Future<void> removeAllFromCollection() async {
+    try {
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid == null) throw Exception('Not authenticated');
+      final colRef = _firestore
+          .collection(_usersCollection)
+          .doc(currentUid)
+          .collection(_collectionsCollection);
+      final snap = await colRef.get();
+      if (snap.docs.isEmpty) return;
+      final batch = _firestore.batch();
+      for (final d in snap.docs) {
+        batch.delete(d.reference);
+      }
+      await batch.commit();
     } catch (e) {
       throw Exception(_handleFirestoreException(e));
     }

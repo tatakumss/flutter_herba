@@ -28,7 +28,7 @@
   "Pomelo": {"description": "Large citrus fruit; peel used in candies/tea.", "uses": ["Vitamin C", "Candied peel", "Aromatic tea"]},
   "Rose Balsam": {"description": "Impatiens balsamina; leaves/flowers used in folk applications.", "uses": ["Topical poultice", "Ornamental", "Herbal decoction"]},
   "Saluyot": {"description": "Jute mallow; leaves used as vegetable and in folk medicine.", "uses": ["Leafy vegetable", "Soup/stew", "Herbal decoction"]},
-  "Sambong": {"description": "Blumea balsamifera; diuretic and kidney support in folk medicine.", "uses": ["Diuretic", "Kidney support", "Anti-inflammatory"]},
+  "Sambong": {"description": "Blumea balsamifera; diuretic  and kidney support in folk medicine.", "uses": ["Diuretic", "Kidney support", "Anti-inflammatory"]},
   "Soursop": {"description": "Graviola; leaves and fruit used traditionally (research ongoing).", "uses": ["Herbal tea", "Fruit desserts", "Folk remedy"]},
   "Stonebreaker": {"description": "Phyllanthus niruri; traditionally used for kidney stones.", "uses": ["Kidney stone support", "Liver support", "Herbal tea"]},
   "Sweet Basil": {"description": "Culinary basil with sweet aroma.", "uses": ["Pesto/culinary", "Aromatic tea", "Digestive aid"]},

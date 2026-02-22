@@ -164,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 
                 // Welcome Text
                 Text(
-                  "Welcome Back!",
+                  "Welcome",
                   style: TextStyle(
                     fontSize: 36,
                     fontWeight: FontWeight.w800,

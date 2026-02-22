@@ -8,7 +8,6 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/collection_service.dart';
 import 'edit_profile_screen.dart';
-import 'about_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -337,17 +336,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onTap: () => Navigator.pushNamed(context, '/settings'),
                       ),
                       const SizedBox(height: 16),
-                      _buildModernMenuItem(
-                        icon: Icons.info_rounded,
-                        title: "About",
-                        subtitle: "App information & version",
-                        color: const Color(0xFF795548),
-                        isDark: isDark,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const AboutScreen()),
-                        ),
-                      ),
                       const SizedBox(height: 32),
                       
                       // Modern Logout Button

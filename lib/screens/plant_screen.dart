@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'dart:convert' as convert;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../config/app_config.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
@@ -27,7 +29,6 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
   List<Map<String, dynamic>> _results = [];
   List<Map<String, dynamic>> _resultsA = [];
   List<Map<String, dynamic>> _resultsB = [];
-  bool _showCombo = false;
   bool _resultsCollapsed = false;
   bool _loading = false;
   String? _error;
@@ -49,12 +50,18 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
   
   // Current scan ID for linking reports
   String? _currentScanId;
+  
+  // Track if feedback has been submitted to prevent duplicates
+  bool _feedbackSubmitted = false;
+  
+  // Track which plant is marked as correct
+  int? _selectedCorrectPlantIndex;
 
-  // Runtime model selection (V1/V2)
+  // Model configuration for dataset assessment (combo mode only)
   final List<Map<String, String>> _modelOptions = const [
     {
-      'key': 'v1',
-      'name': 'Model Mendeley',
+      'key': 'mendeley',
+      'name': 'Mendeley',
       'model': 'assets/models/herbal_classifier.tflite',
       'labels': 'assets/models/class_labels.txt',
       'extractor': 'assets/models/feature_extractor.tflite',
@@ -62,23 +69,23 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
     },
     {
       'key': 'kaggle',
-      'name': 'Model Kaggle',
+      'name': 'Kaggle',
       'model': 'assets/models/kaggle_herbal_classifier.tflite',
       'labels': 'assets/models/kaggle_class_labels.txt',
       'extractor': 'assets/models/kaggle_feature_extractor.tflite',
       'ood': 'assets/models/kaggle_complete_ood_stats.json',
     },
-    {
-      'key': 'combo',
-      'name': 'Model Kaggle+Mendeley',
-      // combo uses both existing models at runtime; paths are ignored
-      'model': '',
-      'labels': '',
-      'extractor': '',
-      'ood': '',
-    },
   ];
-  String _selectedModelKey = 'combo';
+  // Always use combo mode for dataset assessment
+  final String _selectedModelKey = 'combo';
+  
+  // Track capture state and OOD detection
+  bool _hasTriedCapture = false;
+  String? _oodReason;
+  double? _oodScore;
+  double? _skinRatio;
+  double? _edgeDensity;
+  double? _greenRatio;
 
   // Last scan context for saving to collection
   String _lastLabel = 'Unknown';
@@ -86,14 +93,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
   bool _lastIsOod = false;
   List<Map<String, dynamic>> _lastCandidates = const [];
   bool _savedToCollection = false;
-  String? _oodReason; // e.g., LOW_CONFIDENCE, HUMAN_DETECTED, etc.
-  double? _oodConf;
-  double? _oodScore;
-  double? _skinRatio;
-  double? _edgeDensity;
-  double? _greenRatio;
-  // Only show error panel after the user actually attempts a scan
-  bool _hasTriedCapture = false;
+  String? _preferredDataset; // 'mendeley' | 'kaggle'
 
   @override
   void initState() {
@@ -105,7 +105,6 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
     _results = [];
     _resultsA = [];
     _resultsB = [];
-    _showCombo = false;
     _error = null;
     _initModel();
     _initCamera();
@@ -142,104 +141,172 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
 
   Widget _buildResultCardCombo(List<Map<String, dynamic>> a, List<Map<String, dynamic>> b) {
     final theme = Theme.of(context);
-    List<Map<String, dynamic>> norm(List<Map<String, dynamic>> src) => src
-        .where((e) => (e['label'] ?? '').toString().isNotEmpty)
-        .map((e) => {
-              'label': (e['label'] ?? '').toString(),
-              'score': (e['score'] is num) ? (e['score'] as num).toDouble().clamp(0.0, 1.0) : 0.0,
-            })
-        .toList();
-    final aTop = norm(a).take(3).toList();
-    final bTop = norm(b).take(3).toList();
-
-    Widget col(String title, List<Map<String, dynamic>> items, Color bar) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Icon(Icons.analytics_outlined, size: 16, color: theme.colorScheme.primary),
-            const SizedBox(width: 6),
+    
+    // Combine and deduplicate results from both models
+    final combinedResults = <String, Map<String, dynamic>>{};
+    
+    // Helper to add results to the combined map
+    void addResults(List<Map<String, dynamic>> results, String source) {
+      for (final result in results) {
+        final label = (result['label'] ?? '').toString();
+        if (label.isEmpty) continue;
+        
+        final score = (result['score'] is num) ? (result['score'] as num).toDouble() : 0.0;
+        final prev = (combinedResults[label]?['score'] is num)
+            ? (combinedResults[label]?['score'] as num).toDouble()
+            : 0.0;
+        if (!combinedResults.containsKey(label) || (prev < score)) {
+          combinedResults[label] = {
+            'label': label,
+            'score': score,
+            'source': source,
+          };
+        }
+      }
+    }
+    
+    // Add results from both models
+    addResults(a, 'Mendeley');
+    addResults(b, 'Kaggle');
+    
+    // Sort by score
+    final sortedResults = combinedResults.values.toList()
+      ..sort((a, b) => (b['score'] as double).compareTo(a['score'] as double));
+    
+    // Take top 3 results
+    final topResults = sortedResults.take(3).toList();
+    
+    // Build a read-only result item (no checkbox)
+    Widget buildResultItem(Map<String, dynamic> result, int index) {
+      final label = result['label'] as String;
+      final score = (result['score'] as num).toDouble();
+      final source = result['source'] as String? ?? 'Unknown';
+      
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey[300]!, width: 1.0),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(width: 4),
             Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ]),
-          const SizedBox(height: 6),
-          for (final e in items)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      e['label'] as String,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  SizedBox(
-                    width: 120,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        value: (e['score'] as double).clamp(0.0, 1.0),
-                        minHeight: 8,
-                        backgroundColor: theme.dividerColor.withValues(alpha: 0.25),
-                        color: bar,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blueGrey.withOpacity(0.10),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.blueGrey.withOpacity(0.25)),
+                        ),
+                        child: Text(
+                          source,
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blueGrey),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${(score * 100).toStringAsFixed(1)}% confidence • $source',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  Text('${(((e['score'] as double) * 100).round())}%', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
                 ],
               ),
             ),
-        ],
+            if (index == 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                ),
+                child: const Text(
+                  'Top match',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        // cap card height so it fits above bottom controls; scroll if overflow
+        maxHeight: MediaQuery.of(context).size.height * (_resultsCollapsed ? 0.22 : 0.55),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           Row(
             children: [
-              Icon(Icons.merge_type, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Top matches (Kaggle + Mendeley)',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              const Text(
+                'Identification Results',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+              const Spacer(),
               IconButton(
                 tooltip: _resultsCollapsed ? 'Expand' : 'Minimize',
-                onPressed: () => setState(() => _resultsCollapsed = !_resultsCollapsed),
-                icon: Icon(_resultsCollapsed ? Icons.expand_more : Icons.expand_less),
+                icon: Icon(_resultsCollapsed ? Icons.unfold_more : Icons.unfold_less),
+                onPressed: () {
+                  setState(() { _resultsCollapsed = !_resultsCollapsed; });
+                },
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          if (!_resultsCollapsed) ...topResults.asMap().entries.map((entry) {
+            final index = entry.key;
+            final result = entry.value;
+            return buildResultItem(result, index);
+          }).toList(),
+          const SizedBox(height: 12),
+          if (_resultsCollapsed) const SizedBox.shrink(),
           AnimatedCrossFade(
             firstChild: const SizedBox.shrink(),
             secondChild: Column(
@@ -254,9 +321,9 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.12),
+                          color: Colors.green.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
+                          border: Border.all(color: Colors.green.withOpacity(0.4)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -271,25 +338,111 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                     TextButton.icon(
                       onPressed: () async {
                         try {
+                          if (_preferredDataset == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please select which dataset performed better (Mendeley or Kaggle).')),
+                            );
+                            return;
+                          }
+
                           if (_previewBytes == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Nothing to save: capture or pick an image first.')),
                             );
                             return;
                           }
+
+                          // Compare with per-dataset top-1 and warn if mismatch
+                          double? mTop;
+                          double? kTop;
+                          if (_resultsA.isNotEmpty && (_resultsA.first['score'] is num)) {
+                            mTop = (_resultsA.first['score'] as num).toDouble();
+                          }
+                          if (_resultsB.isNotEmpty && (_resultsB.first['score'] is num)) {
+                            kTop = (_resultsB.first['score'] as num).toDouble();
+                          }
+                          if (mTop != null && kTop != null && _preferredDataset != 'both') {
+                            final autoPref = (mTop >= kTop) ? 'mendeley' : 'kaggle';
+                            if (_preferredDataset != autoPref) {
+                              final keep = await showDialog<String>(
+                                context: context,
+                                barrierDismissible: true,
+                                builder: (ctx) {
+                                  final autoTitle = autoPref == 'mendeley' ? 'Mendeley' : 'Kaggle';
+                                  final otherTitle = _preferredDataset == 'mendeley' ? 'Mendeley' : 'Kaggle';
+                                  return AlertDialog(
+                                    title: const Text('Confirm dataset preference'),
+                                    content: Text(
+                                      '$autoTitle has higher confidence (${((autoPref == 'mendeley' ? mTop : kTop)!*100).toStringAsFixed(0)}% vs ${((autoPref == 'mendeley' ? kTop : mTop)!*100).toStringAsFixed(0)}%).\nKeep $otherTitle as preferred?',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.of(ctx).pop('cancel'),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.of(ctx).pop('switch'),
+                                        child: Text('Switch to $autoTitle'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () => Navigator.of(ctx).pop('keep'),
+                                        child: Text('Keep $otherTitle'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                              if (keep == 'cancel') return;
+                              if (keep == 'switch') {
+                                setState(() { _preferredDataset = autoPref; });
+                              }
+                            }
+                          }
                           
-                          // Create comprehensive plant data like the results section
-                          final imgB64 = _previewBytes != null ? convert.base64Encode(_previewBytes!) : null;
-                          final cands = _lastCandidates.map((c) => {
+                          // Use the selected dataset's top-1 as the chosen plant
+                          String chosenLabel = _lastLabel;
+                          double chosenConf = _lastConfidence;
+                          if (_preferredDataset == 'mendeley' && a.isNotEmpty) {
+                            chosenLabel = (a.first['label'] ?? 'Unknown').toString();
+                            chosenConf = (a.first['score'] is num) ? (a.first['score'] as num).toDouble() : chosenConf;
+                          } else if (_preferredDataset == 'kaggle' && b.isNotEmpty) {
+                            chosenLabel = (b.first['label'] ?? 'Unknown').toString();
+                            chosenConf = (b.first['score'] is num) ? (b.first['score'] as num).toDouble() : chosenConf;
+                          } else if (_preferredDataset == 'both') {
+                            // When both are selected, choose the higher top-1 for saving while recording 'both'
+                            if (a.isNotEmpty && b.isNotEmpty) {
+                              final aTop = (a.first['score'] is num) ? (a.first['score'] as num).toDouble() : 0.0;
+                              final bTop = (b.first['score'] is num) ? (b.first['score'] as num).toDouble() : 0.0;
+                              final useA = aTop >= bTop;
+                              final pick = useA ? a.first : b.first;
+                              chosenLabel = (pick['label'] ?? 'Unknown').toString();
+                              chosenConf = (pick['score'] is num) ? (pick['score'] as num).toDouble() : chosenConf;
+                            } else if (a.isNotEmpty) {
+                              chosenLabel = (a.first['label'] ?? 'Unknown').toString();
+                              chosenConf = (a.first['score'] is num) ? (a.first['score'] as num).toDouble() : chosenConf;
+                            } else if (b.isNotEmpty) {
+                              chosenLabel = (b.first['label'] ?? 'Unknown').toString();
+                              chosenConf = (b.first['score'] is num) ? (b.first['score'] as num).toDouble() : chosenConf;
+                            }
+                          }
+
+                          // Build image and candidates
+                          final imgB64 = convert.base64Encode(_previewBytes!);
+                          final cands = topResults.map((c) => {
                             'label': c['label'] ?? 'Unknown',
                             'score': c['score'] ?? 0.0,
                           }).toList();
                           
                           final plantData = {
-                            'plantName': _lastLabel,
+                            'plantName': chosenLabel,
                             'imageData': imgB64,
                             'isFavorite': false,
-                            'confidence': _lastConfidence,
+                            'confidence': chosenConf,
+                            // Persist selection metadata
+                            'selectedLabel': chosenLabel,
+                            'selectedConfidence': chosenConf,
+                            'selectedFrom': 'combo',
+                            if (_preferredDataset != null) 'preferredDataset': _preferredDataset,
                             'isOod': (_oodReason == 'HUMAN_DETECTED' || _oodReason == 'NON_PLANT_VISUAL' || _oodReason == 'STATISTICAL_OOD'),
                             'oodReason': _oodReason,
                             'oodScore': _oodScore,
@@ -309,6 +462,14 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                           
                           if (success) {
                             setState(() { _savedToCollection = true; });
+                            // Update local history for percentage stats
+                            try {
+                              await _history.updateLast(
+                                preferredDataset: _preferredDataset,
+                                mendeleyTop: mTop,
+                                kaggleTop: kTop,
+                              );
+                            } catch (_) {}
                           }
                         } catch (e) {
                           if (!mounted) return;
@@ -323,25 +484,31 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                   ],
                 ),
                 const SizedBox(height: 8),
-                LayoutBuilder(
-                  builder: (ctx, c) {
-                    final twoCols = c.maxWidth > 520;
-                    if (twoCols) {
-                      return Row(
-                        children: [
-                          Expanded(child: col('Mendeley', aTop, theme.colorScheme.primary)),
-                          const SizedBox(width: 12),
-                          Expanded(child: col('Kaggle', bTop, const Color(0xFF66BB6A))),
-                        ],
-                      );
-                    }
-                    return Column(
-                      children: [
-                        col('Mendeley', aTop, theme.colorScheme.primary),
-                        const SizedBox(height: 12),
-                        col('Kaggle', bTop, const Color(0xFF66BB6A)),
-                      ],
-                    );
+                // Dataset selector
+                Text('Which dataset performed better?', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'mendeley', label: Text('Mendeley')),
+                    ButtonSegment(value: 'kaggle', label: Text('Kaggle')),
+                  ],
+                  selected: () {
+                    if (_preferredDataset == null) return <String>{};
+                    if (_preferredDataset == 'both') return {'mendeley', 'kaggle'};
+                    return {_preferredDataset!};
+                  }(),
+                  multiSelectionEnabled: true,
+                  emptySelectionAllowed: true,
+                  onSelectionChanged: (sel) {
+                    setState(() {
+                      if (sel.isEmpty) {
+                        _preferredDataset = null;
+                      } else if (sel.length == 2) {
+                        _preferredDataset = 'both';
+                      } else {
+                        _preferredDataset = sel.first;
+                      }
+                    });
                   },
                 ),
                 const SizedBox(height: 8),
@@ -378,17 +545,169 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
+        ),
+      ),
     );
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    _cameraController?.dispose();
     _tflite.dispose();
     _tfliteB?.dispose();
-    _cameraController?.dispose();
     super.dispose();
   }
+
+  Future<void> _initModel() async {
+    try {
+      // Always use combo mode for dataset assessment
+      // Init Mendeley model
+      final mendeley = _modelOptions.firstWhere((m) => m['key'] == 'mendeley');
+      await _tflite.init(
+        modelAsset: mendeley['model']!,
+        labelsAsset: mendeley['labels']!,
+        extractorAsset: mendeley['extractor']!,
+      );
+      
+      // Init Kaggle model
+      _tfliteB = TFLiteService.create();
+      final kaggle = _modelOptions.firstWhere((m) => m['key'] == 'kaggle');
+      await _tfliteB!.init(
+        modelAsset: kaggle['model']!,
+        labelsAsset: kaggle['labels']!,
+        extractorAsset: kaggle['extractor']!,
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load model: $e';
+        });
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _initCamera() async {
+    try {
+      final cameras = await availableCameras();
+      final camera = cameras.firstWhere(
+        (camera) => camera.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
+      
+      _cameraController = CameraController(
+        camera,
+        ResolutionPreset.medium,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.yuv420,
+      );
+      
+      await _cameraController!.initialize();
+      
+      if (mounted) {
+        setState(() {});
+      }
+      
+      // Auto-capture first frame if enabled and this is the first time
+      if (_enableAutoOnce && !_didAutoOnce) {
+        _didAutoOnce = true;
+        _autoClassifyOnce();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to initialize camera: $e';
+        });
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _loadOodProfileForSelectedModel() async {
+    try {
+      // Always load both OOD profiles for dataset assessment
+      final mCfg = _modelOptions.firstWhere((m) => m['key'] == 'mendeley');
+      final kCfg = _modelOptions.firstWhere((m) => m['key'] == 'kaggle');
+      
+      if ((mCfg['ood'] ?? '').isNotEmpty) {
+        await _ood.load(mCfg['ood']!);
+      }
+      
+      if ((kCfg['ood'] ?? '').isNotEmpty) {
+        await _oodKaggle.load(kCfg['ood']!);
+      }
+    } catch (e) {
+      debugPrint('Failed to load OOD profile: $e');
+      // Don't block the UI if OOD fails to load
+    }
+  }
+
+  // Build model selector UI (simplified for dataset assessment mode)
+  Widget _buildModelSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.assessment, size: 18),
+          SizedBox(width: 6),
+          Text('Dataset Assessment Mode'),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _submitDatasetFeedback(String selectedDataset) async {
+    if (_currentScanId == null || _results.isEmpty || _feedbackSubmitted) return;
+    
+    setState(() {
+      _feedbackSubmitted = true;
+    });
+
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+      final plantIdentified = _results.isNotEmpty ? _results[0]['label'] : 'unknown';
+      final confidence = _results.isNotEmpty ? _results[0]['score'] : 0.0;
+      
+      await FirebaseFirestore.instance.collection('dataset_feedback').add({
+        'scanId': _currentScanId,
+        'selectedDataset': selectedDataset,
+        'rejectedDataset': selectedDataset == 'mendeley' ? 'kaggle' : 'mendeley',
+        'plantIdentified': plantIdentified,
+        'confidence': confidence,
+        'timestamp': FieldValue.serverTimestamp(),
+        'userId': userId,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Thank you for your feedback!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _feedbackSubmitted = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit feedback: ${e.toString()}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -404,129 +723,11 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _switchModel(String key) async {
-    if (_selectedModelKey == key) return;
-    setState(() { _selectedModelKey = key; _loading = true; _results = []; _error = null; });
-    try {
-      // Re-init TFLite with new assets
-      _tflite.dispose();
-      _tfliteB?.dispose();
-      await _initModel();
-      await _loadOodProfileForSelectedModel();
-      // Reset OOD state
-      _oodReason = null; _oodConf = null; _oodScore = null; _skinRatio = null; _edgeDensity = null; _greenRatio = null;
-      // Re-run classification on the last preview if available
-      if (_previewBytes != null) {
-        await _classify(_previewBytes!);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() { _error = 'Model switch failed: $e'; });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Model switch failed: $e')),
-      );
-    } finally {
-      if (mounted) setState(() { _loading = false; });
-    }
-  }
-
-  Future<void> _initModel() async {
-    try {
-      if (_selectedModelKey == 'combo') {
-        // Init primary as V1
-        final v1 = _modelOptions.firstWhere((m) => m['key'] == 'v1');
-        await _tflite.init(
-          modelAsset: v1['model']!,
-          labelsAsset: v1['labels']!,
-          extractorAsset: v1['extractor']!,
-        );
-        // Init secondary as Kaggle
-        _tfliteB = TFLiteService.create();
-        final kaggle = _modelOptions.firstWhere((m) => m['key'] == 'kaggle');
-        await _tfliteB!.init(
-          modelAsset: kaggle['model']!,
-          labelsAsset: kaggle['labels']!,
-          extractorAsset: kaggle['extractor']!,
-        );
-      } else {
-        final cfg = _modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first);
-        await _tflite.init(
-          modelAsset: cfg['model']!,
-          labelsAsset: cfg['labels']!,
-          extractorAsset: cfg['extractor']!,
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      // Debug: surface the exact error in the console for troubleshooting
-      // ignore: avoid_print
-      print('TFLite init error: $e');
-      // Also show on UI so it's visible without console
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('TFLite init error: $e')),
-      );
-      setState(() { _error = 'Model or labels not found. Ensure assets/models/herbal_classifier.tflite and assets/models/class_labels.txt exist and are listed in pubspec.yaml.'; });
-    }
-  }
-
-  Future<void> _loadOodProfileForSelectedModel() async {
-    try {
-      if (_selectedModelKey == 'combo') {
-        final mCfg = _modelOptions.firstWhere((m) => m['key'] == 'v1');
-        final kCfg = _modelOptions.firstWhere((m) => m['key'] == 'kaggle');
-        if ((mCfg['ood'] ?? '').isNotEmpty) {
-          await _ood.load(mCfg['ood']!);
-        }
-        if ((kCfg['ood'] ?? '').isNotEmpty) {
-          await _oodKaggle.load(kCfg['ood']!);
-        }
-      } else {
-        final cfg = _modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first);
-        final oodAsset = cfg['ood'];
-        if (oodAsset != null && oodAsset.isNotEmpty) {
-          await _ood.load(oodAsset);
-        }
-      }
-    } catch (_) {
-      // ignore OOD load errors; classification still works
-    }
-  }
-
-  Future<void> _initCamera() async {
-    try {
-      final cams = await availableCameras();
-      final cam = cams.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.back,
-        orElse: () => cams.isNotEmpty ? cams.first : throw Exception('No camera available'),
-      );
-      final controller = CameraController(
-        cam,
-        ResolutionPreset.medium,
-        enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.yuv420,
-      );
-      _cameraController = controller;
-      await controller.initialize();
-      // Ensure torch is off on init and sync UI flag
-      try { await controller.setFlashMode(FlashMode.off); } catch (_) {}
-      if (!mounted) return;
-      setState(() { _flashOn = false; });
-      // Optionally run a one-time automatic classification; disabled by default
-      if (_enableAutoOnce && !_didAutoOnce) {
-        _didAutoOnce = true;
-        Future.delayed(const Duration(milliseconds: 500), _autoClassifyOnce);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() { _error = 'Camera not available: $e'; });
-    }
-  }
-
   Future<void> _autoClassifyOnce() async {
     try {
       final ctrl = _cameraController;
       if (ctrl == null || !ctrl.value.isInitialized) return;
-      if (!_tflite.isInitialized || (_selectedModelKey == 'combo' && (_tfliteB == null || !_tfliteB!.isInitialized))) {
+      if (!_tflite.isInitialized && (_selectedModelKey != 'combo' || (_tfliteB == null || !_tfliteB!.isInitialized))) {
         await _initModel();
       }
       final pic = await ctrl.takePicture();
@@ -537,7 +738,6 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
         _results = [];
         _resultsA = [];
         _resultsB = [];
-        _showCombo = false;
         _error = null;
         _savedToCollection = false;
       });
@@ -546,6 +746,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       // Ignore auto errors; user can still tap Capture manually
     }
   }
+
   void _showTutorial() {
     showDialog(
       context: context,
@@ -689,15 +890,14 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       _results = [];
       _resultsA = [];
       _resultsB = [];
-      _showCombo = false;
       _error = null;
       _savedToCollection = false;
       _oodReason = null;
-      _oodConf = null;
       _oodScore = null;
       _skinRatio = null;
       _edgeDensity = null;
       _greenRatio = null;
+      _preferredDataset = null;
     });
     try {
       // 1) Classify top-K (for UI)
@@ -779,7 +979,6 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
             .toList();
         _resultsA = normalize(aTop);
         _resultsB = normalize(bTop);
-        _showCombo = true;
 
         // Collect both models' inputs for OOD
         final probsA = await _tflite.predictProbs(bytes);
@@ -833,7 +1032,6 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
           _skinRatio = (pick['skinRatio'] as num?)?.toDouble();
           _edgeDensity = (pick['edgeDensity'] as num?)?.toDouble();
           _greenRatio = (pick['greenRatio'] as num?)?.toDouble();
-          _oodConf = calibratedConf;
           _oodScore = oodScore;
           debugPrint('[OOD] combo: A={is:$isA, score:$scoreA, reason:$rA} B={is:$isB, score:$scoreB, reason:$rB} -> is:$isOod reason:$rejReason conf=${calibratedConf.toStringAsFixed(3)} ood=${oodScore.toStringAsFixed(3)}');
         } else if (probs.isNotEmpty && emb.isNotEmpty) {
@@ -846,7 +1044,6 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
           final skinRatio = (ev['skinRatio'] is num) ? (ev['skinRatio'] as num).toDouble() : null;
           final edgeDensity = (ev['edgeDensity'] is num) ? (ev['edgeDensity'] as num).toDouble() : null;
           final greenRatio = (ev['greenRatio'] is num) ? (ev['greenRatio'] as num).toDouble() : null;
-          _oodConf = calibratedConf;
           _oodScore = oodScore;
           _skinRatio = skinRatio;
           _edgeDensity = edgeDensity;
@@ -876,7 +1073,6 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
             if (oodScore < 0.60) oodScore = 0.60;
             calibratedConf = math.min(calibratedConf, 0.20);
             _oodScore = oodScore;
-            _oodConf = calibratedConf;
             debugPrint('[OOD] heuristic NON_PLANT_VISUAL applied g=${g.toStringAsFixed(3)} e=${e.toStringAsFixed(3)} s=${s.toStringAsFixed(3)} top=$topLabel');
           }
         }
@@ -908,7 +1104,6 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
         if (oodScore < 0.60) oodScore = 0.60;
         calibratedConf = math.min(calibratedConf, 0.20);
         _oodScore = oodScore;
-        _oodConf = calibratedConf;
       }
 
       // 4) Final results for UI: hide predictions for hard OOD reasons
@@ -920,56 +1115,83 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       }
 
       if (!mounted) return;
+
+      // Prepare top result and candidates before setState
+      final top = finalRes.isNotEmpty ? finalRes.first : null;
+      final String label = top != null ? (top['label'] ?? 'Unknown').toString() : 'Unknown';
+      final double scoreVal = top != null && (top['score'] is num)
+          ? (top['score'] as num).toDouble()
+          : 0.0;
+      final List<Map<String, dynamic>> candidates = finalRes.take(3).map<Map<String, dynamic>>((e) {
+        final l = (e['label'] ?? '').toString();
+        final s = (e['score'] is num) ? (e['score'] as num).toDouble() : 0.0;
+        return {'label': l, 'score': s, 'oodSim': hardOod ? oodScore : null};
+      }).toList();
+
       setState(() {
         _results = finalRes;
         _oodReason = rejReason;
+        _selectedCorrectPlantIndex = null;
+
         if (hardOod) {
-          // Hide split Mendeley/Kaggle lists when we reject as OOD
-          _showCombo = false;
           _resultsA = [];
           _resultsB = [];
         }
-      });
 
-      // 5) Persist to history (mark as OOD when hard rejection)
-      final top = finalRes.isNotEmpty ? finalRes.first : null;
-      if (top != null) {
-        final label = (top['label'] ?? 'Unknown').toString();
-        final score = (top['score'] is num) ? (top['score'] as num).toDouble() : 0.0;
-        final candidates = finalRes.take(3).map<Map<String, dynamic>>((e) {
-          final l = (e['label'] ?? '').toString();
-          final s = (e['score'] is num) ? (e['score'] as num).toDouble() : 0.0;
-          return {'label': l, 'score': s, 'oodSim': hardOod ? oodScore : null};
-        }).toList();
         // Save to local state for Save-to-Collection
         _lastLabel = label;
-        _lastConfidence = hardOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : score);
+        _lastConfidence = hardOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : scoreVal);
         _lastIsOod = hardOod;
         _lastCandidates = candidates;
-        
-        // Save scan result to database and get scan ID for potential reports
-        _currentScanId = await _scanService.saveScan(
-          plantName: label,
-          confidence: hardOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : score),
-          isOod: hardOod,
+      });
+
+      // Save scan result to database and get scan ID for potential reports
+      // Note: at classify-time, user selections may not exist yet; we still include per-dataset tops and mark selectedFrom if in combo
+      final double? mTopAtScan = _resultsA.isNotEmpty && (_resultsA.first['score'] is num)
+          ? (_resultsA.first['score'] as num).toDouble()
+          : null;
+      final double? kTopAtScan = _resultsB.isNotEmpty && (_resultsB.first['score'] is num)
+          ? (_resultsB.first['score'] as num).toDouble()
+          : null;
+      _currentScanId = await _scanService.saveScan(
+        plantName: label,
+        confidence: hardOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : scoreVal),
+        isOod: hardOod,
+        candidates: candidates,
+        oodReason: rejReason,
+        oodScore: hardOod ? oodScore : null,
+        preferredDataset: _preferredDataset,
+        selectedLabel: _selectedCorrectPlantIndex != null && _selectedCorrectPlantIndex! >= 0 && _selectedCorrectPlantIndex! < _results.length
+            ? (_results[_selectedCorrectPlantIndex!]['label'] ?? 'Unknown').toString()
+            : null,
+        selectedConfidence: _selectedCorrectPlantIndex != null && _selectedCorrectPlantIndex! >= 0 && _selectedCorrectPlantIndex! < _results.length
+            ? ((_results[_selectedCorrectPlantIndex!]['score'] is num) ? (_results[_selectedCorrectPlantIndex!]['score'] as num).toDouble() : null)
+            : null,
+        mendeleyTop: mTopAtScan,
+        kaggleTop: kTopAtScan,
+        selectedFrom: (_resultsA.isNotEmpty || _resultsB.isNotEmpty) ? 'combo' : null,
+      );
+
+      // Also save to local history, including per-dataset top confidences if available
+      final double? mendeleyTop = _resultsA.isNotEmpty && (_resultsA.first['score'] is num)
+          ? (_resultsA.first['score'] as num).toDouble()
+          : null;
+      final double? kaggleTop = _resultsB.isNotEmpty && (_resultsB.first['score'] is num)
+          ? (_resultsB.first['score'] as num).toDouble()
+          : null;
+      await _history.add(
+        ScanEntry(
+          name: label,
+          confidence: hardOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : scoreVal),
+          timestamp: DateTime.now(),
+          success: !hardOod,
           candidates: candidates,
-          oodReason: rejReason,
-          oodScore: hardOod ? oodScore : null,
-        );
-        
-        // Also save to local history for backward compatibility
-        await _history.add(
-          ScanEntry(
-            name: label,
-            confidence: hardOod ? 0.0 : (calibratedConf > 0 ? calibratedConf : score),
-            timestamp: DateTime.now(),
-            success: !hardOod,
-            candidates: candidates,
-            isOod: hardOod,
-            oodSim: hardOod ? oodScore : null,
-          ),
-        );
-      }
+          isOod: hardOod,
+          oodSim: hardOod ? oodScore : null,
+          mendeleyTop: mendeleyTop,
+          kaggleTop: kaggleTop,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() { _error = e.toString(); });
@@ -1027,48 +1249,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                   Row(
                     children: [
                       // Model selector
-                      PopupMenuButton<String>(
-                        tooltip: 'Select model',
-                        onSelected: (k) => _switchModel(k),
-                        itemBuilder: (ctx) => _modelOptions.map((m) {
-                          final key = m['key']!;
-                          final name = m['name']!;
-                          return PopupMenuItem<String>(
-                            value: key,
-                            child: Row(
-                              children: [
-                                if (_selectedModelKey == key)
-                                  const Icon(Icons.check, size: 16)
-                                else
-                                  const SizedBox(width: 16),
-                                const SizedBox(width: 8),
-                                Text(name),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.swap_horiz, size: 18),
-                              const SizedBox(width: 6),
-                              Text(_modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first)['name']!),
-                            ],
-                          ),
-                        ),
-                      ),
+                      _buildModelSelector(),
                       const SizedBox(width: 10),
                       InkWell(
                         onTap: _showTutorial,
@@ -1228,12 +1409,12 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                         bottom: 20,
                         left: 20,
                         right: 20,
-                        child: _buildResultCard([
+                        child: _buildResultCardCombo([
                           {'label': 'Error', 'score': 0.0},
-                          {'label': _error, 'score': 0.0},
-                        ]),
+                          {'label': _error ?? 'Unknown error', 'score': 0.0},
+                        ], const []),
                       )
-                    else if (_hasTriedCapture && _showCombo && (_resultsA.isNotEmpty || _resultsB.isNotEmpty))
+                    else if (_hasTriedCapture && (_resultsA.isNotEmpty || _resultsB.isNotEmpty))
                       Positioned(
                         bottom: 20,
                         left: 20,
@@ -1245,7 +1426,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                         bottom: 20,
                         left: 20,
                         right: 20,
-                        child: _buildResultCard(_results),
+                        child: _buildResultCardCombo(_results, const []),
                       ),
                   ],
                 ),
@@ -1554,276 +1735,14 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       height: 24,
       decoration: BoxDecoration(
         border: Border(
-          top: isTop ? BorderSide(color: const Color(0xFF4CAF50), width: 3) : BorderSide.none,
-          bottom: !isTop ? BorderSide(color: const Color(0xFF4CAF50), width: 3) : BorderSide.none,
-          left: isLeft ? BorderSide(color: const Color(0xFF4CAF50), width: 3) : BorderSide.none,
-          right: !isLeft ? BorderSide(color: const Color(0xFF4CAF50), width: 3) : BorderSide.none,
+          top: isTop ? const BorderSide(color: Color(0xFF4CAF50), width: 3) : BorderSide.none,
+          bottom: !isTop ? const BorderSide(color: Color(0xFF4CAF50), width: 3) : BorderSide.none,
+          left: isLeft ? const BorderSide(color: Color(0xFF4CAF50), width: 3) : BorderSide.none,
+          right: !isLeft ? const BorderSide(color: Color(0xFF4CAF50), width: 3) : BorderSide.none,
         ),
       ),
     );
   }
 
-  Widget _buildResultCard(List<Map<String, dynamic>> results) {
-    final theme = Theme.of(context);
-    final titleStyle = theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700) ?? const TextStyle(fontSize: 16, fontWeight: FontWeight.w700);
-    final labelStyle = theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600) ?? const TextStyle(fontSize: 14, fontWeight: FontWeight.w600);
-    final percentStyle = theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600) ?? const TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
-    final isUnknown = results.isNotEmpty && (results.first['label']?.toString().toLowerCase() == 'unknown');
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with collapse toggle
-          Row(
-            children: [
-              Icon(Icons.local_florist, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text('Results', maxLines: 1, overflow: TextOverflow.ellipsis, style: titleStyle),
-              ),
-              IconButton(
-                tooltip: _resultsCollapsed ? 'Expand' : 'Minimize',
-                onPressed: () => setState(() => _resultsCollapsed = !_resultsCollapsed),
-                icon: Icon(_resultsCollapsed ? Icons.expand_more : Icons.expand_less),
-              ),
-            ],
-          ),
-          AnimatedCrossFade(
-            firstChild: const SizedBox.shrink(),
-            secondChild: const SizedBox(height: 8),
-            crossFadeState: _resultsCollapsed ? CrossFadeState.showFirst : CrossFadeState.showSecond,
-            duration: const Duration(milliseconds: 180),
-          ),
-          if (isUnknown)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.withOpacity(0.4)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.report_gmailerrorred_outlined, color: Colors.orange, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      // Only show plain 'Unknown' for HUMAN_DETECTED so the app presents just 'plants' or 'Unknown'.
-                      (_oodReason == 'HUMAN_DETECTED' || _oodReason == 'STATISTICAL_OOD')
-                        ? 'Unknown'
-                        : (
-                            'Unknown${_oodReason != null ? ' (${_oodReason})' : ''}. ${_oodConf != null ? 'conf ${_oodConf!.toStringAsFixed(2)}  ' : ''}${_oodScore != null ? 'ood ${_oodScore!.toStringAsFixed(2)}  ' : ''}${_skinRatio != null ? 'skin ${_skinRatio!.toStringAsFixed(2)}  ' : ''}${_edgeDensity != null ? 'edge ${_edgeDensity!.toStringAsFixed(2)}  ' : ''}${_greenRatio != null ? 'green ${_greenRatio!.toStringAsFixed(2)}' : ''}'
-                          ),
-                      style: theme.textTheme.bodyMedium?.copyWith(color: Colors.orange[800], fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          // Save to Collection action + Saved badge
-          if (!_resultsCollapsed)
-          Row(
-            children: [
-              if (_savedToCollection)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.withOpacity(0.4)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.check_circle_outline, size: 16, color: Colors.green),
-                      SizedBox(width: 4),
-                      Text('Saved', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                ),
-              const Spacer(),
-              TextButton.icon(
-                onPressed: () async {
-                  try {
-                    if (_previewBytes == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Nothing to save: capture or pick an image first.')),
-                      );
-                      return;
-                    }
-                    // OOD / low-confidence gating to reduce false positives
-                    // Compute top1 and top2 from current results
-                    final src = _results.isNotEmpty ? _results : (_resultsA.isNotEmpty ? _resultsA : _resultsB);
-                    final top1 = src.isNotEmpty && (src.first['score'] is num)
-                        ? (src.first['score'] as num).toDouble()
-                        : _lastConfidence;
-                    final top2 = src.length > 1 && (src[1]['score'] is num)
-                        ? (src[1]['score'] as num).toDouble()
-                        : 0.0;
-                    const identifyMin = 0.90; // require at least 90% to allow saving
-                    const separationMin = 0.25; // require top1-top2 >= 0.25
-                    final flaggedOod = (_oodReason == 'HUMAN_DETECTED' || _oodReason == 'NON_PLANT_VISUAL' || _oodReason == 'STATISTICAL_OOD');
-                    if (flaggedOod || top1 < identifyMin || (top1 - top2) < separationMin) {
-                      final msg = flaggedOod
-                          ? 'Out-of-domain detected. Try capturing a single leaf on a plain background.'
-                          : 'Low confidence. Improve lighting and fill the frame with a single leaf to save.';
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(msg)),
-                      );
-                      return;
-                    }
-                    // Prepare base64 image and metadata
-                    final imgB64 = convert.base64Encode(_previewBytes!);
-                    // Build top-3 candidates from current results
-                    List<Map<String, dynamic>> cands = [];
-                    for (final e in src.take(3)) {
-                      final l = (e['label'] ?? '').toString();
-                      final s = (e['score'] is num) ? (e['score'] as num).toDouble() : 0.0;
-                      cands.add({'name': l, 'confidence': s});
-                    }
-                    final plantData = {
-                      'plantName': _lastLabel.isNotEmpty ? _lastLabel : (src.isNotEmpty ? (src.first['label'] ?? 'Unknown').toString() : 'Unknown'),
-                      'imageData': imgB64,
-                      'isFavorite': false,
-                      // Store popup info inside plantInfo so Home can render it
-                      'confidence': _lastConfidence,
-                      'isOod': (_oodReason == 'HUMAN_DETECTED' || _oodReason == 'NON_PLANT_VISUAL' || _oodReason == 'STATISTICAL_OOD'),
-                      'oodReason': _oodReason,
-                      'oodScore': _oodScore,
-                      'candidates': cands,
-                      'scannedAt': DateTime.now().toIso8601String(),
-                    };
-                    final ok = await _collections.addToCollection(plantData);
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(ok ? 'Saved to collection' : 'Save failed'),
-                        backgroundColor: ok ? Colors.green : Colors.red,
-                      ),
-                    );
-                    if (ok) {
-                      setState(() { _savedToCollection = true; });
-                    }
-                  } catch (e) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Save failed: $e')),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.bookmark_add_outlined),
-                label: const Text('Save to collection'),
-              ),
-            ],
-          ),
-          if (!_resultsCollapsed)
-            Text('Top matches', style: titleStyle),
-          const SizedBox(height: 4),
-          if (!_resultsCollapsed)
-            Text(
-              'Best guess based on visual features',
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.textTheme.bodySmall?.color?.withOpacity(0.7), fontWeight: FontWeight.w500) ?? const TextStyle(fontSize: 12),
-            ),
-          const SizedBox(height: 8),
-          if (!_resultsCollapsed)
-          for (final item in results)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      (item['label'] ?? '').toString(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: labelStyle,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: 120,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        // Cap visual confidence at 85%
-                        value: (item['score'] is num)
-                            ? ((item['score'] as num).toDouble().clamp(0.0, 1.0)).clamp(0.0, 0.85)
-                            : 0.0,
-                        minHeight: 8,
-                        backgroundColor: theme.dividerColor.withOpacity(0.25),
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    // Cap displayed percent at 85%
-                    () {
-                      final v = (item['score'] is num) ? ((item['score'] as num).toDouble()) : 0.0;
-                      final capped = v.clamp(0.0, 0.85);
-                      return '${(capped * 100).toStringAsFixed(0)}%';
-                    }(),
-                    style: percentStyle,
-                  ),
-                ],
-              ),
-            ),
-          if (!_resultsCollapsed) const SizedBox(height: 8),
-          if (!_resultsCollapsed)
-            // Feedback Actions (responsive, avoids horizontal overflow)
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              alignment: WrapAlignment.spaceBetween,
-              children: [
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 140, maxWidth: 220),
-                  child: TextButton.icon(
-                    onPressed: () => _showFeedbackModal('error'),
-                    icon: const Icon(Icons.report_problem_outlined, size: 16),
-                    label: const Text(
-                      'Report Error',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.orange[700],
-                    ),
-                  ),
-                ),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 160, maxWidth: 260),
-                  child: TextButton.icon(
-                    onPressed: () => _showFeedbackModal('suggestion'),
-                    icon: const Icon(Icons.lightbulb_outline, size: 16),
-                    label: const Text(
-                      'Suggest Improvement',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: theme.colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
+  
 }

@@ -87,6 +87,16 @@ class CollectionService {
     }
   }
 
+  /// Remove all items from the current user's collection
+  Future<bool> removeAll() async {
+    try {
+      await _firestoreService.removeAllFromCollection();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// Check if plant is in collection
   Future<bool> isInCollection(String plantName) async {
     try {

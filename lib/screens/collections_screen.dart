@@ -63,6 +63,17 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: isDark ? Colors.white : AppConfig.primaryDark,
+        actions: [
+          IconButton(
+            tooltip: 'Delete all',
+            icon: const Icon(Icons.delete_forever),
+            onPressed: () async {
+              final confirmed = await _confirmDeleteAll();
+              if (!confirmed) return;
+              await _deleteAllCollections();
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -396,6 +407,44 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
       if (mounted) {
         SnackBarUtils.showError(context, 'Error: $e');
       }
+    }
+  }
+
+  Future<bool> _confirmDeleteAll() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete all items'),
+            content: const Text('Are you sure you want to delete all items from your collection? This cannot be undone.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete all'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _deleteAllCollections() async {
+    try {
+      final success = await _collectionService.removeAll();
+      if (!mounted) return;
+      if (success) {
+        SnackBarUtils.showSuccess(context, 'All items deleted');
+        _loadCollections();
+      } else {
+        SnackBarUtils.showError(context, 'Failed to delete all');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      SnackBarUtils.showError(context, 'Error: $e');
     }
   }
 }

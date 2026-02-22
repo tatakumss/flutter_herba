@@ -10,6 +10,9 @@ class ScanEntry {
   final List<Map<String, dynamic>> candidates; // [{label:String, score:double}, ...]
   final bool isOod; // true if marked out-of-distribution
   final double? oodSim; // similarity (or inverse distance) used by OOD check
+  final double? mendeleyTop; // top-1 score from Mendeley model (0.0 - 1.0)
+  final double? kaggleTop;   // top-1 score from Kaggle model (0.0 - 1.0)
+  final String? preferredDataset; // 'mendeley' | 'kaggle'
 
   ScanEntry({
     required this.name,
@@ -19,6 +22,9 @@ class ScanEntry {
     required this.candidates,
     this.isOod = false,
     this.oodSim,
+    this.mendeleyTop,
+    this.kaggleTop,
+    this.preferredDataset,
   });
 
   Map<String, dynamic> toJson() => {
@@ -29,6 +35,9 @@ class ScanEntry {
         'candidates': candidates,
         'isOod': isOod,
         'oodSim': oodSim,
+        if (mendeleyTop != null) 'mendeleyTop': mendeleyTop,
+        if (kaggleTop != null) 'kaggleTop': kaggleTop,
+        if (preferredDataset != null) 'preferredDataset': preferredDataset,
       };
 
   factory ScanEntry.fromJson(Map<String, dynamic> json) => ScanEntry(
@@ -56,6 +65,9 @@ class ScanEntry {
         }(),
         isOod: json['isOod'] as bool? ?? false,
         oodSim: (json['oodSim'] is num) ? (json['oodSim'] as num).toDouble() : null,
+        mendeleyTop: (json['mendeleyTop'] is num) ? (json['mendeleyTop'] as num).toDouble() : null,
+        kaggleTop: (json['kaggleTop'] is num) ? (json['kaggleTop'] as num).toDouble() : null,
+        preferredDataset: (json['preferredDataset'] as String?)?.toLowerCase(),
       );
 }
 
@@ -91,5 +103,23 @@ class ScanHistoryService {
   Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefsKey);
+  }
+
+  // Update the most recent entry's preferredDataset (and optionally tops)
+  Future<void> updateLast({String? preferredDataset, double? mendeleyTop, double? kaggleTop}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_prefsKey) ?? <String>[];
+    if (list.isEmpty) return;
+    try {
+      final last = list.last;
+      final map = json.decode(last) as Map<String, dynamic>;
+      if (preferredDataset != null) map['preferredDataset'] = preferredDataset;
+      if (mendeleyTop != null) map['mendeleyTop'] = mendeleyTop;
+      if (kaggleTop != null) map['kaggleTop'] = kaggleTop;
+      list[list.length - 1] = json.encode(map);
+      await prefs.setStringList(_prefsKey, list);
+    } catch (_) {
+      // ignore parse errors, leave history unchanged
+    }
   }
 }

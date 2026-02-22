@@ -311,25 +311,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: _buildStatCard(
-                      "Total Scans",
-                      "${_filtered().length}",
-                      Icons.camera_alt,
-                      const Color(0xFF4CAF50),
-                      context,
-                    ),
+                    child: Builder(builder: (context) {
+                      final list = _filtered();
+                      final total = list.length;
+                      final m = list.where((e) => (e.preferredDataset ?? '').toLowerCase() == 'mendeley').length;
+                      final both = list.where((e) => (e.preferredDataset ?? '').toLowerCase() == 'both').length;
+                      final mPct = total == 0 ? '—' : (((m + both * 0.5) / total) * 100).toStringAsFixed(0) + '%';
+                      return _buildStatCard(
+                        "Mendeley %",
+                        mPct,
+                        Icons.insights,
+                        const Color(0xFF4CAF50),
+                        context,
+                      );
+                    }),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _buildStatCard(
-                      "Success Rate",
-                      _filtered().isEmpty
-                          ? "—"
-                          : "${((_filtered().where((e) => e.success).length / _filtered().length) * 100).toStringAsFixed(0)}%",
-                      Icons.check_circle,
-                      AppConfig.primaryColor,
-                      context,
-                    ),
+                    child: Builder(builder: (context) {
+                      final list = _filtered();
+                      final total = list.length;
+                      final k = list.where((e) => (e.preferredDataset ?? '').toLowerCase() == 'kaggle').length;
+                      final both = list.where((e) => (e.preferredDataset ?? '').toLowerCase() == 'both').length;
+                      final kPct = total == 0 ? '—' : (((k + both * 0.5) / total) * 100).toStringAsFixed(0) + '%';
+                      return _buildStatCard(
+                        "Kaggle %",
+                        kPct,
+                        Icons.insights,
+                        AppConfig.primaryColor,
+                        context,
+                      );
+                    }),
                   ),
                 ],
               ),
@@ -514,6 +526,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 6),
+                if (scan.mendeleyTop != null || scan.kaggleTop != null)
+                  Builder(builder: (context) {
+                    final m = scan.mendeleyTop;
+                    final k = scan.kaggleTop;
+                    final mPct = m != null ? (m * 100).toStringAsFixed(0) : '—';
+                    final kPct = k != null ? (k * 100).toStringAsFixed(0) : '—';
+                    final pref = (scan.preferredDataset ?? ((m ?? 0.0) >= (k ?? 0.0) ? 'mendeley' : 'kaggle')).toLowerCase();
+                    final text = pref == 'both'
+                        ? 'Both selected ($mPct% vs $kPct%)'
+                        : '${pref == 'mendeley' ? 'Mendeley' : 'Kaggle'} performed better ($mPct% vs $kPct%)';
+                    return Text(
+                      text,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    );
+                  }),
               ],
             ),
           ),
