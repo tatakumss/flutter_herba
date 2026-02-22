@@ -7,6 +7,7 @@ import '../config/app_config.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/collection_service.dart';
+import '../utils/snackbar_utils.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -23,7 +24,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   UserProfile? _userProfile;
   bool _loading = true;
   int _collectionsCount = 0;
-  int _scansCount = 0;
 
   @override
   void initState() {
@@ -40,7 +40,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() {
           _userProfile = profile;
           _collectionsCount = collections.length;
-          _scansCount = collections.length; // For now, same as collections
           _loading = false;
         });
       }
@@ -81,12 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await _loadUserProfile();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to update profile: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          SnackBarUtils.showError(context, 'Failed to update profile: $e');
         }
       }
     }
@@ -176,7 +170,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                                  color: AppConfig.getShadowColor(isDark),
                                   blurRadius: 20,
                                   offset: const Offset(0, 8),
                                 ),
@@ -210,7 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           borderRadius: BorderRadius.circular(32),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                              color: AppConfig.getShadowColor(isDark),
                               blurRadius: 30,
                               offset: const Offset(0, 16),
                             ),
@@ -286,31 +280,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             const SizedBox(height: 32),
                             
-                            // Statistics Cards
+                            // Statistics Card
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 24),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildStatCard(
-                                      icon: Icons.collections_bookmark_rounded,
-                                      title: "Collections",
-                                      value: _collectionsCount.toString(),
-                                      color: const Color(0xFF4CAF50),
-                                      isDark: isDark,
-                                    ),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 200,
+                                  child: _buildStatCard(
+                                    icon: Icons.collections_bookmark_rounded,
+                                    title: "Collections",
+                                    value: _collectionsCount.toString(),
+                                    color: const Color(0xFF4CAF50),
+                                    isDark: isDark,
                                   ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: _buildStatCard(
-                                      icon: Icons.camera_alt_rounded,
-                                      title: "Scans",
-                                      value: _scansCount.toString(),
-                                      color: const Color(0xFF2196F3),
-                                      isDark: isDark,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                             const SizedBox(height: 40),
@@ -338,49 +321,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 16),
                       const SizedBox(height: 32),
                       
-                      // Modern Logout Button
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.red.withOpacity(0.2),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
+                      // Sign Out Button (Capture Plant Style - Medium)
+                      SizedBox(
+                        width: 200, // Medium width instead of full width
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            await _showLogoutDialog();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppConfig.deleteColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14), // Slightly smaller than original 18
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
                             ),
-                          ],
-                        ),
-                        child: Material(
-                          color: Colors.red.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(20),
-                            onTap: () async {
-                              await _showLogoutDialog();
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 20),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.logout_rounded,
-                                    color: Colors.red.shade600,
-                                    size: 24,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    "Sign Out",
-                                    style: TextStyle(
-                                      color: Colors.red.shade600,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
+                            elevation: 0,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.logout_rounded, size: 20, color: Colors.white), // Smaller icon for medium size
+                              const SizedBox(width: 10), // Smaller spacing
+                              Text(
+                                "Sign Out",
+                                style: TextStyle(
+                                  fontSize: 16, // Smaller font for medium size
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
+                            ],
                           ),
                         ),
                       ),
@@ -464,7 +433,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+            color: AppConfig.getShadowColor(isDark),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -510,7 +479,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         subtitle,
                         style: TextStyle(
                           fontSize: 14,
-                          color: isDark ? Colors.white.withOpacity(0.6) : Colors.grey[600],
+                          color: AppConfig.getTextSecondary(isDark),
                         ),
                       ),
                     ],
@@ -520,13 +489,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                    color: AppConfig.getTextSecondary(isDark).withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.arrow_forward_ios_rounded,
                     size: 16,
-                    color: isDark ? Colors.white.withOpacity(0.6) : Colors.grey[600],
+                    color: AppConfig.getTextSecondary(isDark),
                   ),
                 ),
               ],
@@ -541,24 +510,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(
-              Icons.logout_rounded,
-              color: Colors.red.shade600,
-              size: 28,
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'Sign Out',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
         content: const Text(
           'Are you sure you want to sign out of your account?',
           style: TextStyle(fontSize: 16),
@@ -569,7 +520,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Text(
               'Cancel',
               style: TextStyle(
-                color: Colors.grey[600],
+                color: AppConfig.cancelColor,
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -578,7 +529,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
+              backgroundColor: AppConfig.deleteColor,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

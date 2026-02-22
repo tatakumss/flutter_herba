@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/app_config.dart';
 
 class SnackBarUtils {
   static void showSuccess(BuildContext context, String message) {
@@ -6,7 +7,7 @@ class SnackBarUtils {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.green,
+        backgroundColor: AppConfig.successColor,
         duration: const Duration(seconds: 3),
       ),
     );
@@ -17,7 +18,7 @@ class SnackBarUtils {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red,
+        backgroundColor: AppConfig.errorColor,
         duration: const Duration(seconds: 4),
       ),
     );
@@ -28,7 +29,7 @@ class SnackBarUtils {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.blue,
+        backgroundColor: AppConfig.infoColor,
         duration: const Duration(seconds: 3),
       ),
     );
@@ -39,7 +40,7 @@ class SnackBarUtils {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.orange,
+        backgroundColor: AppConfig.warningColor,
         duration: const Duration(seconds: 3),
       ),
     );

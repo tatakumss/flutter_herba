@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/app_text_field.dart';
+import '../../utils/snackbar_utils.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 
@@ -51,12 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } catch (e) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarUtils.showError(context, e.toString());
       } finally {
         setState(() {
           _isLoading = false;
@@ -79,12 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Navigation will be handled by AuthWrapper automatically
       } catch (e) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Login failed: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarUtils.showError(context, 'Login failed: $e');
       } finally {
         setState(() {
           _isLoading = false;
@@ -179,7 +171,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   "Continue your plant discovery journey",
                   style: TextStyle(
                     fontSize: 16,
-                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    color: AppConfig.getTextSecondary(isDark),
                     fontWeight: FontWeight.w400,
                   ),
                 ),
@@ -190,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Container(
                   padding: const EdgeInsets.all(32),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.grey[900]!.withOpacity(0.3) : Colors.white,
+                    color: AppConfig.getCardColor(isDark),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
@@ -202,7 +194,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                     border: isDark 
-                      ? Border.all(color: Colors.grey[800]!, width: 1)
+                      ? Border.all(color: AppConfig.getTextSecondary(isDark), width: 1)
                       : null,
                   ),
                   child: Form(
@@ -210,10 +202,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       children: [
                         // Email Field
-                        _buildModernTextField(
+                        AppTextField.auth(
                           controller: _emailController,
                           label: "Email Address",
-                          icon: Icons.email_rounded,
+                          prefixIcon: Icons.email_rounded,
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -224,20 +216,20 @@ class _LoginScreenState extends State<LoginScreen> {
                             }
                             return null;
                           },
-                          isDark: isDark,
+                          isRequired: true,
                         ),
                         
                         const SizedBox(height: 24),
                         
                         // Password Field
-                        _buildModernTextField(
+                        AppTextField.auth(
                           controller: _passwordController,
                           label: "Password",
-                          icon: Icons.lock_rounded,
+                          prefixIcon: Icons.lock_rounded,
                           obscureText: _obscurePassword,
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePassword ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                              _obscurePassword ? Icons.visibility : Icons.visibility_off,
                               color: AppConfig.primaryColor,
                             ),
                             onPressed: () {
@@ -250,12 +242,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your password';
                             }
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
-                            }
                             return null;
                           },
-                          isDark: isDark,
+                          isRequired: true,
                         ),
                         
                         const SizedBox(height: 20),
@@ -285,13 +274,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: _credentialsValidated 
-                                ? [Colors.green, Colors.green.shade700]
+                                ? [AppConfig.successColor, AppConfig.successColor]
                                 : [AppConfig.primaryColor, AppConfig.primaryColor.withOpacity(0.8)],
                             ),
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: (_credentialsValidated ? Colors.green : AppConfig.primaryColor).withOpacity(0.3),
+                                color: (_credentialsValidated ? AppConfig.successColor : AppConfig.primaryColor).withOpacity(0.3),
                                 blurRadius: 15,
                                 offset: const Offset(0, 8),
                               ),
@@ -335,7 +324,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(
                       "Don't have an account? ",
                       style: TextStyle(
-                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        color: AppConfig.getTextSecondary(isDark),
                         fontSize: 16,
                       ),
                     ),
@@ -375,80 +364,4 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildModernTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-    bool obscureText = false,
-    Widget? suffixIcon,
-    String? Function(String?)? validator,
-    required bool isDark,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? Colors.grey[800]!.withOpacity(0.3) : Colors.grey[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.grey[700]! : Colors.grey[200]!,
-          width: 1,
-        ),
-      ),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        obscureText: obscureText,
-        style: TextStyle(
-          color: isDark ? Colors.white : Colors.black87,
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(
-            color: isDark ? Colors.grey[400] : Colors.grey[600],
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-          floatingLabelStyle: TextStyle(
-            color: AppConfig.primaryColor,
-            fontWeight: FontWeight.w600,
-          ),
-          prefixIcon: Container(
-            margin: const EdgeInsets.only(right: 12),
-            child: Icon(
-              icon,
-              color: AppConfig.primaryColor,
-              size: 22,
-            ),
-          ),
-          suffixIcon: suffixIcon,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: AppConfig.primaryColor,
-              width: 2,
-            ),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(
-              color: Colors.red,
-              width: 1,
-            ),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        ),
-        validator: validator,
-      ),
-    );
-  }
 }

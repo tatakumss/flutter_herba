@@ -75,14 +75,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.12),
+                              color: AppConfig.getWarningWithOpacity(0.12),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.report_gmailerrorred_outlined, size: 14, color: Colors.orange),
+                                Icon(Icons.report_gmailerrorred_outlined, size: 14, color: AppConfig.warningColor),
                                 const SizedBox(width: 4),
-                                Text('Unknown', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w700)),
+                                Text('Unknown', style: TextStyle(color: AppConfig.warningColor, fontWeight: FontWeight.w700)),
                               ],
                             ),
                           ),
@@ -100,7 +100,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Text(
                           'This scan was flagged as Unknown by OOD detection${scan.oodSim != null ? ' (similarity ${(scan.oodSim! * 100).toStringAsFixed(0)}%)' : ''}',
-                          style: theme.textTheme.bodyMedium?.copyWith(color: Colors.orange[700], fontWeight: FontWeight.w600),
+                          style: theme.textTheme.bodyMedium?.copyWith(color: AppConfig.warningColor, fontWeight: FontWeight.w600),
                         ),
                       ),
                     for (final cand in scan.candidates.take(3))
@@ -408,9 +408,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: (Theme.of(context).brightness == Brightness.dark)
-                  ? const Color(0xFF81C784)
-                  : AppConfig.primaryDark,
+              color: AppConfig.getTitleColor(context),
             ),
           ),
           Text(
@@ -483,9 +481,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: (Theme.of(context).brightness == Brightness.dark)
-                              ? const Color(0xFF81C784)
-                              : AppConfig.primaryDark,
+                          color: AppConfig.getTitleColor(context),
                         ),
                       ),
                     ),

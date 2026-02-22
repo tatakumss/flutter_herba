@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../config/app_config.dart';
 import '../services/auth_service.dart';
+import '../widgets/app_text_field.dart';
+import '../utils/snackbar_utils.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String userId;
@@ -76,12 +78,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile updated successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        SnackBarUtils.showSuccess(context, 'Profile updated successfully!');
 
         Navigator.pop(context, {
           'name': name,
@@ -90,12 +87,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update profile: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarUtils.showError(context, 'Failed to update profile: $e');
       }
     } finally {
       if (mounted) {
@@ -131,20 +123,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _photoUrl = 'data:image/jpeg;base64,$base64Image';  // Base64 data URL
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Image selected. Click Save to upload.'),
-          backgroundColor: Colors.blue,
-        ),
-      );
+      SnackBarUtils.showInfo(context, 'Image selected. Click Save to upload.');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to pick photo: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      SnackBarUtils.showError(context, 'Failed to pick photo: $e');
     } finally {
       if (mounted) {
         setState(() { 
@@ -192,89 +174,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     const SizedBox(height: 20),
                     
                     // Current Password Field
-                    TextField(
+                    AppTextField.simple(
                       controller: currentPasswordController,
+                      label: 'Current Password',
                       obscureText: obscureCurrentPassword,
-                      decoration: InputDecoration(
-                        labelText: 'Current Password',
-                        prefixIcon: Icon(Icons.lock_outlined, color: AppConfig.primaryColor),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            obscureCurrentPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                            color: AppConfig.primaryColor,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              obscureCurrentPassword = !obscureCurrentPassword;
-                            });
-                          },
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppConfig.primaryColor),
-                        ),
-                      ),
+                      isRequired: true,
                     ),
                     const SizedBox(height: 16),
                     
                     // New Password Field
-                    TextField(
+                    AppTextField.simple(
                       controller: newPasswordController,
+                      label: 'New Password',
                       obscureText: obscureNewPassword,
-                      decoration: InputDecoration(
-                        labelText: 'New Password',
-                        prefixIcon: Icon(Icons.lock_reset, color: AppConfig.primaryColor),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            obscureNewPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                            color: AppConfig.primaryColor,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              obscureNewPassword = !obscureNewPassword;
-                            });
-                          },
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppConfig.primaryColor),
-                        ),
-                      ),
+                      isRequired: true,
                     ),
                     const SizedBox(height: 16),
                     
                     // Confirm Password Field
-                    TextField(
+                    AppTextField.simple(
                       controller: confirmPasswordController,
+                      label: 'Confirm New Password',
                       obscureText: obscureConfirmPassword,
-                      decoration: InputDecoration(
-                        labelText: 'Confirm New Password',
-                        prefixIcon: Icon(Icons.lock_reset, color: AppConfig.primaryColor),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                            color: AppConfig.primaryColor,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              obscureConfirmPassword = !obscureConfirmPassword;
-                            });
-                          },
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppConfig.primaryColor),
-                        ),
-                      ),
+                      isRequired: true,
                     ),
                   ],
                 ),
@@ -320,52 +242,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   ) async {
     // Validation
     if (currentPassword.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your current password'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      SnackBarUtils.showWarning(context, 'Please enter your current password');
       return;
     }
 
     if (newPassword.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a new password'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      SnackBarUtils.showWarning(context, 'Please enter a new password');
       return;
     }
 
     if (newPassword.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('New password must be at least 6 characters'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      SnackBarUtils.showError(context, 'New password must be at least 6 characters');
       return;
     }
 
     if (newPassword != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('New passwords do not match'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      SnackBarUtils.showError(context, 'New passwords do not match');
       return;
     }
 
     if (currentPassword == newPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('New password must be different from current password'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      SnackBarUtils.showWarning(context, 'New password must be different from current password');
       return;
     }
 
@@ -374,20 +271,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       
       Navigator.of(context).pop(); // Close dialog
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password changed successfully!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
-        ),
-      );
+      SnackBarUtils.showSuccess(context, 'Password changed successfully!');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: Colors.red,
-        ),
-      );
+      SnackBarUtils.showError(context, e.toString());
     }
   }
 
@@ -479,20 +365,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               )
             ),
             const SizedBox(height: 8),
-            TextField(
+            AppTextField.simple(
               controller: _nameController,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                hintText: 'Enter your name',
-                prefixIcon: Icon(Icons.person_outline, color: AppConfig.primaryColor),
-                border: const OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12))
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: const BorderRadius.all(Radius.circular(12)),
-                  borderSide: BorderSide(color: AppConfig.primaryColor),
-                ),
-              ),
+              hintText: 'Enter your name',
+              keyboardType: TextInputType.name,
             ),
 
             const SizedBox(height: 24),

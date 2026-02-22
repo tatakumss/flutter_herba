@@ -6,16 +6,19 @@ import 'dart:convert' as convert;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../config/app_config.dart';
+import '../utils/snackbar_utils.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
-import '../services/tflite_service.dart';
 import 'package:camera/camera.dart';
+import '../services/tflite_service.dart';
 import '../services/scan_history_service.dart';
 import '../services/ood_service.dart';
 import 'package:image/image.dart' as img;
 import '../services/collection_service.dart';
 import '../services/feedback_service.dart';
 import '../services/scan_service.dart';
+import '../widgets/feedback_action_button.dart';
+import '../widgets/app_text_field.dart';
 
 class PlantScreen extends StatefulWidget {
   const PlantScreen({super.key});
@@ -119,9 +122,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
     final ctrl = _cameraController;
     if (ctrl == null || !ctrl.value.isInitialized) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Camera not ready')),
-      );
+      SnackBarUtils.showWarning(context, 'Camera not ready');
       return;
     }
     try {
@@ -133,9 +134,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Flash not available: $e')),
-      );
+      SnackBarUtils.showError(context, 'Flash not available: $e');
     }
   }
 
@@ -258,10 +257,25 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
       );
     }
 
+<<<<<<< HEAD
     return ConstrainedBox(
       constraints: BoxConstraints(
         // cap card height so it fits above bottom controls; scroll if overflow
         maxHeight: MediaQuery.of(context).size.height * (_resultsCollapsed ? 0.22 : 0.55),
+=======
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppConfig.shadowColor.withValues(alpha: 0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+>>>>>>> 09cd3b64a437793519ebf3d20dd8f6251c691fdd
       ),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -321,20 +335,27 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
+<<<<<<< HEAD
                           color: Colors.green.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.green.withOpacity(0.4)),
+=======
+                          color: AppConfig.getSuccessWithOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppConfig.getSuccessWithOpacity(0.4)),
+>>>>>>> 09cd3b64a437793519ebf3d20dd8f6251c691fdd
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: const [
-                            Icon(Icons.check_circle_outline, size: 16, color: Colors.green),
+                            Icon(Icons.check_circle_outline, size: 16, color: AppConfig.successColor),
                             SizedBox(width: 4),
-                            Text('Saved', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w700)),
+                            Text('Saved', style: TextStyle(color: AppConfig.successColor, fontWeight: FontWeight.w700)),
                           ],
                         ),
                       ),
                     const Spacer(),
+<<<<<<< HEAD
                     TextButton.icon(
                       onPressed: () async {
                         try {
@@ -526,23 +547,105 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                         label: const Text('Report Error', overflow: TextOverflow.ellipsis),
                         style: TextButton.styleFrom(foregroundColor: Colors.orange[700]),
                       ),
+=======
+                  TextButton.icon(
+                    onPressed: () async {
+                      try {
+                        if (_previewBytes == null) {
+                          SnackBarUtils.showWarning(context, 'Nothing to save: capture or pick an image first.');
+                          return;
+                        }
+                        
+                        // Create comprehensive plant data like the results section
+                        final imgB64 = _previewBytes != null ? convert.base64Encode(_previewBytes!) : null;
+                        final cands = _lastCandidates.map((c) => {
+                          'label': c['label'] ?? 'Unknown',
+                          'score': c['score'] ?? 0.0,
+                        }).toList();
+                        
+                        final plantData = {
+                          'plantName': _lastLabel,
+                          'imageData': imgB64,
+                          'isFavorite': false,
+                          'confidence': _lastConfidence,
+                          'isOod': (_oodReason == 'HUMAN_DETECTED' || _oodReason == 'NON_PLANT_VISUAL' || _oodReason == 'STATISTICAL_OOD'),
+                          'oodReason': _oodReason,
+                          'oodScore': _oodScore,
+                          'candidates': cands,
+                          'scannedAt': DateTime.now().toIso8601String(),
+                        };
+                        
+                        final success = await _collections.addToCollection(plantData);
+                        if (!mounted) return;
+                        
+                        if (success) {
+                          SnackBarUtils.showSuccess(context, 'Saved to collection');
+                        } else {
+                          SnackBarUtils.showError(context, 'Save failed');
+                        }
+                        
+                        if (success) {
+                          setState(() { _savedToCollection = true; });
+                        }
+                      } catch (e) {
+                        if (!mounted) return;
+                        SnackBarUtils.showError(context, 'Save failed: $e');
+                      }
+                    },
+                    icon: const Icon(Icons.bookmark_add_outlined),
+                    label: const Text('Save to collection'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              LayoutBuilder(
+                builder: (ctx, c) {
+                  final twoCols = c.maxWidth > 520;
+                  if (twoCols) {
+                    return Row(
+                      children: [
+                        Expanded(child: col('Mendeley', aTop, theme.colorScheme.primary)),
+                        const SizedBox(width: 12),
+                        Expanded(child: col('Kaggle', bTop, const Color(0xFF66BB6A))),
+                      ],
+                    );
+                  }
+                  return Column(
+                    children: [
+                      col('Mendeley', aTop, theme.colorScheme.primary),
+                      const SizedBox(height: 12),
+                      col('Kaggle', bTop, const Color(0xFF66BB6A)),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+              // Feedback actions (responsive)
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: () => _showFeedbackModal('error'),
+                      icon: const Icon(Icons.report_problem_outlined, size: 16),
+                      label: const Text('Report Error', overflow: TextOverflow.ellipsis),
+                      style: TextButton.styleFrom(foregroundColor: AppConfig.reportErrorColor),
+>>>>>>> 09cd3b64a437793519ebf3d20dd8f6251c691fdd
                     ),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(minWidth: 160, maxWidth: 260),
-                      child: TextButton.icon(
-                        onPressed: () => _showFeedbackModal('suggestion'),
-                        icon: const Icon(Icons.lightbulb_outline, size: 16),
-                        label: const Text('Suggest Improvement', overflow: TextOverflow.ellipsis),
-                        style: TextButton.styleFrom(foregroundColor: theme.colorScheme.primary),
-                      ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: () => _showFeedbackModal('suggestion'),
+                      icon: const Icon(Icons.lightbulb_outline, size: 16),
+                      label: const Text('Suggest Improvement', overflow: TextOverflow.ellipsis),
+                      style: TextButton.styleFrom(foregroundColor: theme.colorScheme.primary),
                     ),
-                  ],
-                ),
-              ],
-            ),
-            crossFadeState: _resultsCollapsed ? CrossFadeState.showFirst : CrossFadeState.showSecond,
-            duration: const Duration(milliseconds: 180),
+                  ),
+                ],
+              ),
+            ],
           ),
+<<<<<<< HEAD
         ],
       ),
         ),
@@ -720,9 +823,152 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
     } else if (state == AppLifecycleState.resumed) {
       // Reinitialize camera when app resumes
       _initCamera();
+=======
+          crossFadeState: _resultsCollapsed ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+          duration: const Duration(milliseconds: 180),
+        ),
+      ],
+    ),
+  );
+}
+
+@override
+void dispose() {
+  WidgetsBinding.instance.removeObserver(this);
+  _tflite.dispose();
+  _tfliteB?.dispose();
+  _cameraController?.dispose();
+  super.dispose();
+}
+
+@override
+void didChangeAppLifecycleState(AppLifecycleState state) {
+  final ctrl = _cameraController;
+  if (ctrl == null) return;
+  if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+    // Release camera when app goes to background to avoid freezes on return
+    ctrl.dispose();
+    _cameraController = null;
+  } else if (state == AppLifecycleState.resumed) {
+    // Reinitialize camera when app resumes
+    _initCamera();
+  }
+}
+
+Future<void> _switchModel(String key) async {
+  if (_selectedModelKey == key) return;
+  setState(() { _selectedModelKey = key; _loading = true; _results = []; _error = null; });
+  try {
+    // Re-init TFLite with new assets
+    _tflite.dispose();
+    _tfliteB?.dispose();
+    await _initModel();
+    await _loadOodProfileForSelectedModel();
+    // Reset OOD state
+    _oodReason = null; _oodConf = null; _oodScore = null; _skinRatio = null; _edgeDensity = null; _greenRatio = null;
+    // Re-run classification on the last preview if available
+    if (_previewBytes != null) {
+      await _classify(_previewBytes!);
+>>>>>>> 09cd3b64a437793519ebf3d20dd8f6251c691fdd
+    }
+  } catch (e) {
+    if (!mounted) return;
+    setState(() { _error = 'Model switch failed: $e'; });
+    SnackBarUtils.showError(context, 'Model switch failed: $e');
+  } finally {
+    if (mounted) setState(() { _loading = false; });
+  }
+}
+
+<<<<<<< HEAD
+=======
+Future<void> _initModel() async {
+  try {
+    if (_selectedModelKey == 'combo') {
+      // Init primary as V1
+      final v1 = _modelOptions.firstWhere((m) => m['key'] == 'v1');
+      await _tflite.init(
+        modelAsset: v1['model']!,
+        labelsAsset: v1['labels']!,
+        extractorAsset: v1['extractor']!,
+      );
+      // Init secondary as Kaggle
+      _tfliteB = TFLiteService.create();
+      final kaggle = _modelOptions.firstWhere((m) => m['key'] == 'kaggle');
+      await _tfliteB!.init(
+        modelAsset: kaggle['model']!,
+        labelsAsset: kaggle['labels']!,
+        extractorAsset: kaggle['extractor']!,
+      );
+    } else {
+      final cfg = _modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first);
+      await _tflite.init(
+        modelAsset: cfg['model']!,
+        labelsAsset: cfg['labels']!,
+        extractorAsset: cfg['extractor']!,
+      );
+    }
+  } catch (e) {
+    if (!mounted) return;
+    SnackBarUtils.showError(context, 'TFLite init error: $e');
+    setState(() { _error = 'Model or labels not found. Ensure assets/models/herbal_classifier.tflite and assets/models/class_labels.txt exist and are listed in pubspec.yaml.'; });
+  }
+}
+
+Future<void> _loadOodProfileForSelectedModel() async {
+  try {
+      if (_selectedModelKey == 'combo') {
+        final mCfg = _modelOptions.firstWhere((m) => m['key'] == 'v1');
+        final kCfg = _modelOptions.firstWhere((m) => m['key'] == 'kaggle');
+        if ((mCfg['ood'] ?? '').isNotEmpty) {
+          await _ood.load(mCfg['ood']!);
+        }
+        if ((kCfg['ood'] ?? '').isNotEmpty) {
+          await _oodKaggle.load(kCfg['ood']!);
+        }
+      } else {
+        final cfg = _modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first);
+        final oodAsset = cfg['ood'];
+        if (oodAsset != null && oodAsset.isNotEmpty) {
+          await _ood.load(oodAsset);
+        }
+      }
+    } catch (_) {
+      // ignore OOD load errors; classification still works
     }
   }
 
+  Future<void> _initCamera() async {
+    try {
+      final cams = await availableCameras();
+      final cam = cams.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.back,
+        orElse: () => cams.isNotEmpty ? cams.first : throw Exception('No camera available'),
+      );
+      final controller = CameraController(
+        cam,
+        ResolutionPreset.medium,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.yuv420,
+      );
+      _cameraController = controller;
+      await controller.initialize();
+      // Ensure torch is off on init and sync UI flag
+      try { await controller.setFlashMode(FlashMode.off); } catch (_) {}
+      if (!mounted) return;
+      setState(() { _flashOn = false; });
+      // Optionally run a one-time automatic classification; disabled by default
+      if (_enableAutoOnce && !_didAutoOnce) {
+        _didAutoOnce = true;
+        Future.delayed(const Duration(milliseconds: 500), _autoClassifyOnce);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _error = 'Camera not available: $e'; });
+    }
+  }
+
+>>>>>>> 09cd3b64a437793519ebf3d20dd8f6251c691fdd
   Future<void> _autoClassifyOnce() async {
     try {
       final ctrl = _cameraController;
@@ -1237,9 +1483,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? const Color(0xFF81C784)
-                                  : AppConfig.primaryDark,
+                              color: AppConfig.getTitleColor(context),
                             ),
                           ),
                         ),
@@ -1249,7 +1493,52 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                   Row(
                     children: [
                       // Model selector
+<<<<<<< HEAD
                       _buildModelSelector(),
+=======
+                      PopupMenuButton<String>(
+                        tooltip: 'Select model',
+                        onSelected: (k) => _switchModel(k),
+                        itemBuilder: (ctx) => _modelOptions.map((m) {
+                          final key = m['key']!;
+                          final name = m['name']!;
+                          return PopupMenuItem<String>(
+                            value: key,
+                            child: Row(
+                              children: [
+                                if (_selectedModelKey == key)
+                                  const Icon(Icons.check, size: 16)
+                                else
+                                  const SizedBox(width: 16),
+                                const SizedBox(width: 8),
+                                Text(name),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppConfig.shadowColor.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.swap_horiz, size: 18),
+                              const SizedBox(width: 6),
+                              Text(_modelOptions.firstWhere((m) => m['key'] == _selectedModelKey, orElse: () => _modelOptions.first)['name']!),
+                            ],
+                          ),
+                        ),
+                      ),
+>>>>>>> 09cd3b64a437793519ebf3d20dd8f6251c691fdd
                       const SizedBox(width: 10),
                       InkWell(
                         onTap: _showTutorial,
@@ -1261,7 +1550,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: AppConfig.shadowColor.withOpacity(0.1),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -1331,7 +1620,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
+                                    color: AppConfig.shadowColor.withOpacity(0.1),
                                     blurRadius: 20,
                                     offset: const Offset(0, 8),
                                   ),
@@ -1340,7 +1629,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                               child: Icon(
                                 Icons.camera_alt,
                                 size: 64,
-                                color: Theme.of(context).colorScheme.primary,
+                                color: AppConfig.getTitleColor(context),
                               ),
                             ),
                             const SizedBox(height: 24),
@@ -1349,9 +1638,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? const Color(0xFF81C784)
-                                    : AppConfig.primaryDark,
+                                color: AppConfig.getTitleColor(context),
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -1397,7 +1684,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.4),
+                              color: AppConfig.shadowColor.withOpacity(0.4),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const CircularProgressIndicator(color: Colors.white),
@@ -1481,7 +1768,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.08),
+                                  color: AppConfig.shadowColor.withOpacity(0.08),
                                   blurRadius: 15,
                                   offset: const Offset(0, 4),
                                 ),
@@ -1515,7 +1802,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.08),
+                                  color: AppConfig.shadowColor.withOpacity(0.08),
                                   blurRadius: 15,
                                   offset: const Offset(0, 4),
                                 ),
@@ -1581,7 +1868,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                     children: [
                       Icon(
                         type == 'error' ? Icons.report_problem_outlined : Icons.lightbulb_outline,
-                        color: type == 'error' ? Colors.orange[700] : Theme.of(context).colorScheme.primary,
+                        color: type == 'error' ? AppConfig.reportErrorColor : Theme.of(context).colorScheme.primary,
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -1606,17 +1893,14 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  AppTextField.multiline(
                     controller: controller,
+                    hintText: type == 'error' 
+                        ? 'e.g., "The plant was identified as X but it\'s actually Y"'
+                        : 'e.g., "It would be great if the app could..."',
                     maxLines: 4,
                     maxLength: 500,
-                    decoration: InputDecoration(
-                      hintText: type == 'error' 
-                          ? 'e.g., "The plant was identified as X but it\'s actually Y"'
-                          : 'e.g., "It would be great if the app could..."',
-                      border: const OutlineInputBorder(),
-                      counterText: '',
-                    ),
+                    showCounter: false,
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -1685,7 +1969,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                                         ? 'Error report submitted. Thanks for helping us improve!'
                                         : 'Suggestion submitted. Thanks for your feedback!'
                                   ),
-                                  backgroundColor: Colors.green,
+                                  backgroundColor: AppConfig.successColor,
                                 ),
                               );
                             } else {
@@ -1693,7 +1977,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('Failed to submit feedback. Please try again.'),
-                                  backgroundColor: Colors.red,
+                                  backgroundColor: AppConfig.errorColor,
                                 ),
                               );
                             }
@@ -1705,7 +1989,7 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Error: $e'),
-                                backgroundColor: Colors.red,
+                                backgroundColor: AppConfig.errorColor,
                               ),
                             );
                           }
@@ -1744,5 +2028,252 @@ class _PlantScreenState extends State<PlantScreen> with WidgetsBindingObserver {
     );
   }
 
+<<<<<<< HEAD
   
+=======
+  Widget _buildResultCard(List<Map<String, dynamic>> results) {
+    final theme = Theme.of(context);
+    final titleStyle = theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700) ?? const TextStyle(fontSize: 16, fontWeight: FontWeight.w700);
+    final labelStyle = theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600) ?? const TextStyle(fontSize: 14, fontWeight: FontWeight.w600);
+    final percentStyle = theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600) ?? const TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
+    final isUnknown = results.isNotEmpty && (results.first['label']?.toString().toLowerCase() == 'unknown');
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppConfig.shadowColor.withOpacity(0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with collapse toggle
+          Row(
+            children: [
+              Icon(Icons.local_florist, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Results', maxLines: 1, overflow: TextOverflow.ellipsis, style: titleStyle),
+              ),
+              IconButton(
+                tooltip: _resultsCollapsed ? 'Expand' : 'Minimize',
+                onPressed: () => setState(() => _resultsCollapsed = !_resultsCollapsed),
+                icon: Icon(_resultsCollapsed ? Icons.expand_more : Icons.expand_less),
+              ),
+            ],
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: const SizedBox(height: 8),
+            crossFadeState: _resultsCollapsed ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            duration: const Duration(milliseconds: 180),
+          ),
+          if (isUnknown)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: AppConfig.getWarningWithOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppConfig.getWarningWithOpacity(0.4)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.report_gmailerrorred_outlined, color: AppConfig.warningColor, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      // Only show plain 'Unknown' for HUMAN_DETECTED so the app presents just 'plants' or 'Unknown'.
+                      (_oodReason == 'HUMAN_DETECTED' || _oodReason == 'STATISTICAL_OOD')
+                        ? 'Unknown'
+                        : (
+                            'Unknown${_oodReason != null ? ' (${_oodReason})' : ''}. ${_oodConf != null ? 'conf ${_oodConf!.toStringAsFixed(2)}  ' : ''}${_oodScore != null ? 'ood ${_oodScore!.toStringAsFixed(2)}  ' : ''}${_skinRatio != null ? 'skin ${_skinRatio!.toStringAsFixed(2)}  ' : ''}${_edgeDensity != null ? 'edge ${_edgeDensity!.toStringAsFixed(2)}  ' : ''}${_greenRatio != null ? 'green ${_greenRatio!.toStringAsFixed(2)}' : ''}'
+                          ),
+                      style: theme.textTheme.bodyMedium?.copyWith(color: AppConfig.warningColor, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // Save to Collection action + Saved badge
+          if (!_resultsCollapsed)
+          Row(
+            children: [
+              if (_savedToCollection)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: AppConfig.getSuccessWithOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppConfig.getSuccessWithOpacity(0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.check_circle_outline, size: 16, color: AppConfig.successColor),
+                      SizedBox(width: 4),
+                      Text('Saved', style: TextStyle(color: AppConfig.successColor, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () async {
+                  try {
+                    if (_previewBytes == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Nothing to save: capture or pick an image first.')),
+                      );
+                      return;
+                    }
+                    // OOD / low-confidence gating to reduce false positives
+                    // Compute top1 and top2 from current results
+                    final src = _results.isNotEmpty ? _results : (_resultsA.isNotEmpty ? _resultsA : _resultsB);
+                    final top1 = src.isNotEmpty && (src.first['score'] is num)
+                        ? (src.first['score'] as num).toDouble()
+                        : _lastConfidence;
+                    final top2 = src.length > 1 && (src[1]['score'] is num)
+                        ? (src[1]['score'] as num).toDouble()
+                        : 0.0;
+                    const identifyMin = 0.90; // require at least 90% to allow saving
+                    const separationMin = 0.25; // require top1-top2 >= 0.25
+                    final flaggedOod = (_oodReason == 'HUMAN_DETECTED' || _oodReason == 'NON_PLANT_VISUAL' || _oodReason == 'STATISTICAL_OOD');
+                    if (flaggedOod || top1 < identifyMin || (top1 - top2) < separationMin) {
+                      final msg = flaggedOod
+                          ? 'Out-of-domain detected. Try capturing a single leaf on a plain background.'
+                          : 'Low confidence. Improve lighting and fill the frame with a single leaf to save.';
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(msg)),
+                      );
+                      return;
+                    }
+                    // Prepare base64 image and metadata
+                    final imgB64 = convert.base64Encode(_previewBytes!);
+                    // Build top-3 candidates from current results
+                    List<Map<String, dynamic>> cands = [];
+                    for (final e in src.take(3)) {
+                      final l = (e['label'] ?? '').toString();
+                      final s = (e['score'] is num) ? (e['score'] as num).toDouble() : 0.0;
+                      cands.add({'name': l, 'confidence': s});
+                    }
+                    final plantData = {
+                      'plantName': _lastLabel.isNotEmpty ? _lastLabel : (src.isNotEmpty ? (src.first['label'] ?? 'Unknown').toString() : 'Unknown'),
+                      'imageData': imgB64,
+                      'isFavorite': false,
+                      // Store popup info inside plantInfo so Home can render it
+                      'confidence': _lastConfidence,
+                      'isOod': (_oodReason == 'HUMAN_DETECTED' || _oodReason == 'NON_PLANT_VISUAL' || _oodReason == 'STATISTICAL_OOD'),
+                      'oodReason': _oodReason,
+                      'oodScore': _oodScore,
+                      'candidates': cands,
+                      'scannedAt': DateTime.now().toIso8601String(),
+                    };
+                    final ok = await _collections.addToCollection(plantData);
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok ? 'Saved to collection' : 'Save failed'),
+                        backgroundColor: ok ? AppConfig.successColor : AppConfig.errorColor,
+                      ),
+                    );
+                    if (ok) {
+                      setState(() { _savedToCollection = true; });
+                    }
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Save failed: $e')),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.bookmark_add_outlined),
+                label: const Text('Save to collection'),
+              ),
+            ],
+          ),
+          if (!_resultsCollapsed)
+            Text('Top matches', style: titleStyle),
+          const SizedBox(height: 4),
+          if (!_resultsCollapsed)
+            Text(
+              'Best guess based on visual features',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.textTheme.bodySmall?.color?.withOpacity(0.7), fontWeight: FontWeight.w500) ?? const TextStyle(fontSize: 12),
+            ),
+          const SizedBox(height: 8),
+          if (!_resultsCollapsed)
+          for (final item in results)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      (item['label'] ?? '').toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: labelStyle,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 120,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        // Cap visual confidence at 85%
+                        value: (item['score'] is num)
+                            ? ((item['score'] as num).toDouble().clamp(0.0, 1.0)).clamp(0.0, 0.85)
+                            : 0.0,
+                        minHeight: 8,
+                        backgroundColor: theme.dividerColor.withOpacity(0.25),
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    // Cap displayed percent at 85%
+                    () {
+                      final v = (item['score'] is num) ? ((item['score'] as num).toDouble()) : 0.0;
+                      final capped = v.clamp(0.0, 0.85);
+                      return '${(capped * 100).toStringAsFixed(0)}%';
+                    }(),
+                    style: percentStyle,
+                  ),
+                ],
+              ),
+            ),
+          if (!_resultsCollapsed) const SizedBox(height: 8),
+          if (!_resultsCollapsed)
+            // Feedback Actions (responsive layout)
+            Row(
+              children: [
+                Expanded(
+                  child: FeedbackActionButton.error(
+                    onPressed: () => _showFeedbackModal('error'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FeedbackActionButton.suggestion(
+                    onPressed: () => _showFeedbackModal('suggestion'),
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+>>>>>>> 09cd3b64a437793519ebf3d20dd8f6251c691fdd
 }

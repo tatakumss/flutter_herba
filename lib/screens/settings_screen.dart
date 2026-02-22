@@ -32,7 +32,7 @@ class SettingsScreen extends StatelessWidget {
                   leading: Icon(icon),
                   title: Text(label),
                   trailing: selected
-                      ? const Icon(Icons.check_circle, color: Colors.green)
+                      ? Icon(Icons.check_circle, color: AppConfig.successColor)
                       : const Icon(Icons.circle_outlined),
                   onTap: () => ThemeController.setThemeMode(value),
                 );

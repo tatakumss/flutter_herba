@@ -2,9 +2,10 @@
 
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import '../config/app_config.dart';
 import '../services/collection_service.dart';
+import '../config/app_config.dart';
 import '../utils/date_formatter.dart';
+import '../widgets/app_text_field.dart';
 import '../utils/snackbar_utils.dart';
 
 class CollectionsScreen extends StatefulWidget {
@@ -80,22 +81,14 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
           // Search bar
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: TextField(
+            child: AppTextField.search(
+              controller: TextEditingController(),
+              hintText: 'Search collections...',
               onChanged: (value) {
                 setState(() {
                   _searchQuery = value;
                 });
               },
-              decoration: InputDecoration(
-                hintText: 'Search collections...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: isDark ? Colors.grey[800] : Colors.grey[100],
-              ),
             ),
           ),
           
@@ -130,7 +123,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
           Icon(
             Icons.collections_bookmark_outlined,
             size: 64,
-            color: Colors.grey[400],
+            color: AppConfig.cancelColor,
           ),
           const SizedBox(height: 16),
           Text(
@@ -140,7 +133,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w500,
-              color: Colors.grey[600],
+              color: AppConfig.textSecondaryLight,
             ),
           ),
           const SizedBox(height: 8),
@@ -150,7 +143,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                 : 'Try a different search term',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[500],
+              color: AppConfig.textSecondaryLight.withOpacity(0.8),
             ),
           ),
         ],
@@ -184,7 +177,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.grey[700] : Colors.grey[200],
+                  color: AppConfig.getCardColor(isDark),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: collection['imageData'] != null
@@ -196,7 +189,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                           errorBuilder: (context, error, stackTrace) {
                             return Icon(
                               Icons.local_florist,
-                              color: Colors.grey[500],
+                              color: AppConfig.cancelColor,
                               size: 30,
                             );
                           },
@@ -204,7 +197,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                       )
                     : Icon(
                         Icons.local_florist,
-                        color: Colors.grey[500],
+                        color: AppConfig.cancelColor,
                         size: 30,
                       ),
               ),
@@ -229,7 +222,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                         '${(confidence * 100).toInt()}% confidence',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.green[600],
+                          color: AppConfig.successColor,
                           fontWeight: FontWeight.w500,
                         ),
                       )
@@ -238,7 +231,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                         'Uncertain identification',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.orange[600],
+                          color: AppConfig.warningColor,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -247,7 +240,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                       DateFormatter.formatRelativeDate(addedAt),
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey[600],
+                        color: AppConfig.getTextSecondary(isDark),
                       ),
                     ),
                   ],
@@ -258,7 +251,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
               IconButton(
                 onPressed: () => _showCollectionOptions(collection),
                 icon: const Icon(Icons.more_vert),
-                color: Colors.grey[600],
+                color: AppConfig.textSecondaryLight,
               ),
             ],
           ),
@@ -307,7 +300,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                 if (plantInfo['confidence'] != null)
                   Text('Confidence: ${((plantInfo['confidence'] as double) * 100).toInt()}%'),
                 if (plantInfo['isOod'] == true)
-                  const Text('Status: Uncertain identification', style: TextStyle(color: Colors.orange)),
+                  Text('Status: Uncertain identification', style: TextStyle(color: AppConfig.warningColor)),
                 if (plantInfo['oodReason'] != null)
                   Text('Reason: ${plantInfo['oodReason']}'),
                 if (plantInfo['candidates'] != null && (plantInfo['candidates'] as List).isNotEmpty) ...[
@@ -353,8 +346,8 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Remove from Collection', style: TextStyle(color: Colors.red)),
+              leading: Icon(Icons.delete, color: AppConfig.deleteColor),
+              title: Text('Remove from Collection', style: TextStyle(color: AppConfig.deleteColor)),
               onTap: () async {
                 Navigator.pop(context);
                 final confirmed = await _confirmDelete(collection);
@@ -382,7 +375,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: AppConfig.deleteColor),
             child: const Text('Remove'),
           ),
         ],

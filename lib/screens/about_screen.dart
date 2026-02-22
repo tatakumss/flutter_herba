@@ -58,15 +58,15 @@ class _AboutScreenState extends State<AboutScreen> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: isDark
-                    ? const [Color(0xFF2E7D32), Color(0xFF1B5E20)]
-                    : const [Color(0xFF4CAF50), Color(0xFF2E7D32)],
+                    ? [AppConfig.primaryColor, AppConfig.primaryDark]
+                    : [AppConfig.successColor, AppConfig.primaryColor],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: isDark ? Colors.black.withOpacity(0.4) : const Color(0xFF4CAF50).withOpacity(0.25),
+                  color: AppConfig.getShadowColor(isDark),
                   blurRadius: 16,
                   offset: const Offset(0, 6),
                 ),

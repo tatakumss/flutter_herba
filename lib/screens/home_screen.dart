@@ -32,13 +32,11 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               // Header Section
               Text(
-                "Discover Nature",
+                "Welcome to PediaHerb",
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: (Theme.of(context).brightness == Brightness.dark)
-                      ? const Color(0xFF81C784)
-                      : AppConfig.primaryDark,
+                  color: AppConfig.getTitleColor(context),
                 ),
               ),
               const SizedBox(height: 32),
@@ -164,9 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: (Theme.of(context).brightness == Brightness.dark)
-                          ? const Color(0xFF81C784)
-                          : AppConfig.primaryDark,
+                      color: AppConfig.getTitleColor(context),
                     ),
                   ),
                   TextButton(
@@ -209,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Colors.grey.withOpacity(0.2),
+                          color: AppConfig.cancelColor.withOpacity(0.2),
                           style: BorderStyle.solid,
                         ),
                       ),
@@ -219,7 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           Icon(
                             Icons.collections_outlined,
                             size: 32,
-                            color: Colors.grey[400],
+                            color: AppConfig.cancelColor,
                           ),
                           const SizedBox(height: 8),
                           Text(
@@ -227,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: Colors.grey[600],
+                              color: AppConfig.textSecondaryLight,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -236,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[500],
+                              color: AppConfig.textSecondaryLight.withOpacity(0.8),
                             ),
                           ),
                         ],
@@ -266,9 +262,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: (Theme.of(context).brightness == Brightness.dark)
-                      ? const Color(0xFF81C784)
-                      : AppConfig.primaryDark,
+                  color: AppConfig.getTitleColor(context),
                 ),
               ),
               const SizedBox(height: 12),
@@ -690,7 +684,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
-                                color: isOod ? Colors.orange : Colors.green,
+                                color: isOod ? AppConfig.warningColor : AppConfig.successColor,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -771,7 +765,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,
-                                      color: Colors.grey[600],
+                                      color: AppConfig.textSecondaryLight,
                                     ),
                                   ),
                                 ],
@@ -850,7 +844,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     messenger.showSnackBar(
                       const SnackBar(
                         content: Text('Removed from collection'),
-                        backgroundColor: Colors.green,
+                        backgroundColor: AppConfig.successColor,
                       ),
                     );
                     // Clear image cache and refresh the collections list
@@ -864,13 +858,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     messenger.showSnackBar(
                       SnackBar(
                         content: Text('Failed to remove from collection: $e'),
-                        backgroundColor: Colors.red,
+                        backgroundColor: AppConfig.errorColor,
                       ),
                     );
                   }
                 }
               },
-              style: TextButton.styleFrom(foregroundColor: Colors.orange),
+              style: TextButton.styleFrom(foregroundColor: AppConfig.warningColor),
               child: const Text('Remove'),
             ),
           ],
